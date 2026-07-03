@@ -197,3 +197,26 @@ PATCH  /settings/low-stock-threshold                    SETTINGS_UPDATE
 
 GET    /audit-log                                       AUDIT_LOG_READ
 ```
+
+## Deployment
+
+Both apps run on the **Vercel free tier** as two separate projects built from this one monorepo:
+
+| App | Vercel project | Root dir | URL |
+|-----|----------------|----------|-----|
+| Web (Next.js) | `bilal-inventory-web` | `apps/web` | https://bilal-inventory-web.vercel.app |
+| API (NestJS)  | `bilal-inventory-api` | `apps/api` | https://bilal-inventory-api.vercel.app |
+
+The API runs as a Vercel **serverless function**: `apps/api/api/index.ts` re-exports the compiled `apps/api/src/vercel-handler.ts` (Nest bootstrapped over its own Express instance, `app.init()` instead of `listen()`). Build/route config is in `apps/api/vercel.json`. Prisma's `binaryTargets` includes `rhel-openssl-3.0.x` for Vercel's Lambda runtime.
+
+**Auto-deploy:** both projects are connected to this GitHub repo, and **every push to `main` deploys both** (each project's *Ignored Build Step* is `exit 1`, i.e. always build — needed so a `packages/shared` change never gets one app skipped).
+
+**Manual deploy** (from the repo root — the `.vercel` link is shared, so re-link before each):
+
+```bash
+vercel link --yes --project bilal-inventory-web && vercel deploy --prod   # frontend
+vercel link --yes --project bilal-inventory-api && vercel deploy --prod   # backend
+```
+
+Env vars are configured per-project in Vercel (never committed): the backend needs the Supabase keys + `DATABASE_URL`/`DIRECT_URL` + `CORS_ORIGIN`; the frontend needs the `NEXT_PUBLIC_*` values. Node is pinned to 22.x on both.
+
