@@ -1,0 +1,10 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "buildCommand": "pnpm --filter @bilal/api exec prisma generate && pnpm exec turbo run build --filter=@bilal/api && mkdir -p public && printf 'Bilal Inventory API' > public/index.html",
+  "outputDirectory": "public",
+  "functions": {
+    "api/index.ts": { "maxDuration": 60 }
+  },
+  "rewrites": [{ "source": "/(.*)", "destination": "/api" }]
+}
