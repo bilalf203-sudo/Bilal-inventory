@@ -21,7 +21,13 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   useBrandMembers,
   useInviteMember,
@@ -45,9 +51,9 @@ export default function MembersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Members</h1>
+          <h1 className="text-xl font-bold sm:text-2xl">Members</h1>
           <p className="text-sm text-muted-foreground">Users with access to this brand.</p>
         </div>
         <Can permission={PERMISSIONS.BRAND_MEMBER_INVITE}>
@@ -76,7 +82,11 @@ function MemberRow({
   member,
   roles,
 }: {
-  member: { userId: string; user: { email: string; fullName: string | null }; role: { id: string; name: string } };
+  member: {
+    userId: string;
+    user: { email: string; fullName: string | null };
+    role: { id: string; name: string };
+  };
   roles: Role[];
 }) {
   const updateRole = useUpdateMemberRole();
@@ -84,39 +94,45 @@ function MemberRow({
 
   return (
     <Card>
-      <CardContent className="flex items-center gap-4 p-4">
-        <div className="flex-1">
-          <div className="font-semibold">{member.user.fullName ?? member.user.email}</div>
-          <div className="text-xs text-muted-foreground">{member.user.email}</div>
+      <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:gap-4">
+        <div className="min-w-0 sm:flex-1">
+          <div className="truncate font-semibold">{member.user.fullName ?? member.user.email}</div>
+          <div className="truncate text-xs text-muted-foreground">{member.user.email}</div>
         </div>
-        <Can permission={PERMISSIONS.BRAND_MEMBER_UPDATE_ROLE} fallback={<Badge variant="outline">{member.role.name}</Badge>}>
-          <Select
-            value={member.role.id}
-            onValueChange={(roleId) => updateRole.mutate({ userId: member.userId, roleId })}
+        <div className="flex items-center gap-2 sm:gap-3">
+          <Can
+            permission={PERMISSIONS.BRAND_MEMBER_UPDATE_ROLE}
+            fallback={<Badge variant="outline">{member.role.name}</Badge>}
           >
-            <SelectTrigger className="w-48">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {roles.map((r) => (
-                <SelectItem key={r.id} value={r.id}>
-                  {r.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Can>
-        <Can permission={PERMISSIONS.BRAND_MEMBER_REMOVE}>
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={() => {
-              if (confirm(`Remove ${member.user.email}?`)) removeMember.mutate(member.userId);
-            }}
-          >
-            Remove
-          </Button>
-        </Can>
+            <Select
+              value={member.role.id}
+              onValueChange={(roleId) => updateRole.mutate({ userId: member.userId, roleId })}
+            >
+              <SelectTrigger className="min-w-0 flex-1 sm:w-48 sm:flex-none">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {roles.map((r) => (
+                  <SelectItem key={r.id} value={r.id}>
+                    {r.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Can>
+          <Can permission={PERMISSIONS.BRAND_MEMBER_REMOVE}>
+            <Button
+              variant="destructive"
+              size="sm"
+              className="shrink-0"
+              onClick={() => {
+                if (confirm(`Remove ${member.user.email}?`)) removeMember.mutate(member.userId);
+              }}
+            >
+              Remove
+            </Button>
+          </Can>
+        </div>
       </CardContent>
     </Card>
   );

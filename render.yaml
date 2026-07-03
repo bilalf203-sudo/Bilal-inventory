@@ -1,0 +1,40 @@
+# Render Blueprint — NestJS backend (apps/api) for Bilal Inventory.
+# Deploy: Render Dashboard → New → Blueprint → connect this repo.
+# Secrets (sync:false) are entered in the Render dashboard, never committed.
+services:
+  - type: web
+    name: bilal-inventory-api
+    runtime: node
+    plan: free
+    region: singapore # closest free region to the Supabase project (ap-northeast-1 / Tokyo)
+    branch: main
+    # Build from the repo root so pnpm can resolve the workspace and turbo can
+    # build @bilal/shared before @bilal/api. Prisma client is generated for the
+    # debian-openssl-3.0.x target that Render's runtime uses.
+    buildCommand: pnpm install --frozen-lockfile && pnpm --filter @bilal/api exec prisma generate && pnpm exec turbo run build --filter=@bilal/api
+    startCommand: node apps/api/dist/main.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: AUTH_DRIVER
+        value: supabase
+      - key: STORAGE_DRIVER
+        value: supabase
+      - key: SUPABASE_STORAGE_BUCKET
+        value: article-images
+      # --- Secrets: set these in the Render dashboard (Environment tab) ---
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_JWT_SECRET
+        sync: false
+      # Set to the deployed Vercel frontend URL (e.g. https://bilal-inventory-web.vercel.app)
+      - key: CORS_ORIGIN
+        sync: false

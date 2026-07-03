@@ -15,9 +15,9 @@ export default function MarketplacesSettingsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Marketplaces</h1>
+          <h1 className="text-xl font-bold sm:text-2xl">Marketplaces</h1>
           <p className="text-sm text-muted-foreground">
             Manage marketplace tabs that appear in the sidebar.
           </p>
@@ -35,33 +35,42 @@ export default function MarketplacesSettingsPage() {
         <div className="space-y-3">
           {data.map((m) => (
             <Card key={m.id}>
-              <CardContent className="flex items-center gap-4 p-4">
-                <span className="h-8 w-8 rounded-md" style={{ backgroundColor: m.color }} />
-                <div className="flex-1">
-                  <div className="font-semibold">{m.name}</div>
+              <CardContent className="flex flex-wrap items-center gap-3 p-4 sm:gap-4">
+                <span
+                  className="h-8 w-8 shrink-0 rounded-md"
+                  style={{ backgroundColor: m.color }}
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="truncate font-semibold">{m.name}</div>
                   {m.description && (
-                    <div className="text-sm text-muted-foreground">{m.description}</div>
+                    <div className="truncate text-sm text-muted-foreground">{m.description}</div>
                   )}
                 </div>
-                <Can permission={PERMISSIONS.MARKETPLACE_UPDATE}>
-                  <MarketplaceFormDialog
-                    marketplace={m}
-                    trigger={<Button variant="outline" size="sm">Edit</Button>}
-                  />
-                </Can>
-                <Can permission={PERMISSIONS.MARKETPLACE_DELETE}>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => {
-                      if (confirm(`Delete "${m.name}"? Assigned articles will be detached.`)) {
-                        remove.mutate(m.id);
+                <div className="flex w-full items-center justify-end gap-2 sm:w-auto">
+                  <Can permission={PERMISSIONS.MARKETPLACE_UPDATE}>
+                    <MarketplaceFormDialog
+                      marketplace={m}
+                      trigger={
+                        <Button variant="outline" size="sm">
+                          Edit
+                        </Button>
                       }
-                    }}
-                  >
-                    Delete
-                  </Button>
-                </Can>
+                    />
+                  </Can>
+                  <Can permission={PERMISSIONS.MARKETPLACE_DELETE}>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => {
+                        if (confirm(`Delete "${m.name}"? Assigned articles will be detached.`)) {
+                          remove.mutate(m.id);
+                        }
+                      }}
+                    >
+                      Delete
+                    </Button>
+                  </Can>
+                </div>
               </CardContent>
             </Card>
           ))}

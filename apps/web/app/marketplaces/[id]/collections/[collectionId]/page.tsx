@@ -124,15 +124,15 @@ export default function MarketplaceCollectionPage({
             <ChevronLeft className="h-4 w-4" />
           </Link>
         </Button>
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
           {marketplace.data && (
             <span
-              className="h-6 w-6 rounded-md"
+              className="h-6 w-6 shrink-0 rounded-md"
               style={{ backgroundColor: marketplace.data.color }}
             />
           )}
-          <div>
-            <h1 className="text-2xl font-bold">{collectionName}</h1>
+          <div className="min-w-0">
+            <h1 className="truncate text-xl font-bold sm:text-2xl">{collectionName}</h1>
             <p className="text-sm text-muted-foreground">
               Assigned in {marketplace.data?.name ?? '...'}
             </p>
@@ -213,70 +213,74 @@ export default function MarketplaceCollectionPage({
 
             return (
               <Card key={ma.id}>
-                <CardContent className="flex items-center gap-6 p-4">
-                  <Link
-                    href={`/warehouse/articles/${ma.articleId}`}
-                    className="relative h-20 w-20 shrink-0 overflow-hidden rounded-md bg-muted"
-                  >
-                    <ProductImage
-                      src={ma.article.imageUrl}
-                      alt={ma.article.name}
-                      iconClassName="h-8 w-8"
-                    />
-                  </Link>
+                <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:gap-6">
+                  <div className="flex min-w-0 flex-1 items-start gap-4">
+                    <Link
+                      href={`/warehouse/articles/${ma.articleId}`}
+                      className="relative h-20 w-20 shrink-0 overflow-hidden rounded-md bg-muted"
+                    >
+                      <ProductImage
+                        src={ma.article.imageUrl}
+                        alt={ma.article.name}
+                        iconClassName="h-8 w-8"
+                      />
+                    </Link>
 
-                  <div className="flex-1 space-y-2">
-                    <div>
-                      <Link
-                        href={`/warehouse/articles/${ma.articleId}`}
-                        className="font-semibold hover:underline"
-                      >
-                        {ma.article.name}
-                      </Link>
-                      <div className="text-xs font-mono text-muted-foreground">
-                        {ma.article.code}
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <div>
+                        <Link
+                          href={`/warehouse/articles/${ma.articleId}`}
+                          className="font-semibold hover:underline"
+                        >
+                          {ma.article.name}
+                        </Link>
+                        <div className="text-xs font-mono text-muted-foreground">
+                          {ma.article.code}
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {SIZES.map((size) => {
+                          const s = stockBySize.get(size);
+                          const remaining = s?.allocated ?? 0;
+                          const sold = s?.sold ?? 0;
+                          const low = remaining > 0 && remaining < LOW_STOCK_THRESHOLD;
+                          return (
+                            <Badge
+                              key={size}
+                              variant={
+                                remaining === 0 ? 'secondary' : low ? 'destructive' : 'outline'
+                              }
+                              className={cn('font-mono tabular-nums gap-1')}
+                            >
+                              <span className="font-bold">{size}</span>
+                              <span>·</span>
+                              <span>{remaining}</span>
+                              {sold > 0 && (
+                                <span className="text-[10px] opacity-70">/{sold}sold</span>
+                              )}
+                            </Badge>
+                          );
+                        })}
                       </div>
                     </div>
-                    <div className="flex flex-wrap gap-1">
-                      {SIZES.map((size) => {
-                        const s = stockBySize.get(size);
-                        const remaining = s?.allocated ?? 0;
-                        const sold = s?.sold ?? 0;
-                        const low = remaining > 0 && remaining < LOW_STOCK_THRESHOLD;
-                        return (
-                          <Badge
-                            key={size}
-                            variant={
-                              remaining === 0 ? 'secondary' : low ? 'destructive' : 'outline'
-                            }
-                            className={cn('font-mono tabular-nums gap-1')}
-                          >
-                            <span className="font-bold">{size}</span>
-                            <span>·</span>
-                            <span>{remaining}</span>
-                            {sold > 0 && (
-                              <span className="text-[10px] opacity-70">/{sold}sold</span>
-                            )}
-                          </Badge>
-                        );
-                      })}
-                    </div>
                   </div>
 
-                  <div className="text-right">
-                    <div className="text-lg font-bold">{formatCurrency(ma.salePrice)}</div>
-                    <div className="text-xs text-muted-foreground">
-                      Cost {formatCurrency(ma.article.purchasePrice)}
+                  <div className="flex items-center justify-between gap-4 sm:shrink-0 sm:justify-end">
+                    <div className="text-right">
+                      <div className="text-lg font-bold">{formatCurrency(ma.salePrice)}</div>
+                      <div className="text-xs text-muted-foreground">
+                        Cost {formatCurrency(ma.article.purchasePrice)}
+                      </div>
                     </div>
-                  </div>
 
-                  <Can permission={PERMISSIONS.SALE_RECORD}>
-                    <RecordSaleDialog
-                      marketplaceArticleId={ma.id}
-                      articleName={ma.article.name}
-                      availableSizes={sizesForSale}
-                    />
-                  </Can>
+                    <Can permission={PERMISSIONS.SALE_RECORD}>
+                      <RecordSaleDialog
+                        marketplaceArticleId={ma.id}
+                        articleName={ma.article.name}
+                        availableSizes={sizesForSale}
+                      />
+                    </Can>
+                  </div>
                 </CardContent>
               </Card>
             );

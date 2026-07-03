@@ -140,8 +140,8 @@ export function SaleReportDialog({ marketplaceId, marketplaceName }: Props) {
                   {preview.unchangedRows > 0 ? ` (${preview.unchangedRows} rows unchanged)` : ''}.
                 </p>
               ) : (
-                <div className="max-h-72 overflow-y-auto rounded-md border">
-                  <table className="w-full text-sm">
+                <div className="max-h-72 overflow-auto rounded-md border">
+                  <table className="w-full min-w-[28rem] text-sm">
                     <thead className="sticky top-0 bg-muted/80 text-xs uppercase text-muted-foreground backdrop-blur">
                       <tr>
                         <th className="p-2 text-left font-medium">Article</th>
@@ -209,15 +209,7 @@ export function SaleReportDialog({ marketplaceId, marketplaceName }: Props) {
   );
 }
 
-function Stat({
-  label,
-  value,
-  highlight,
-}: {
-  label: string;
-  value: number;
-  highlight?: boolean;
-}) {
+function Stat({ label, value, highlight }: { label: string; value: number; highlight?: boolean }) {
   return (
     <div className="rounded-md border p-2">
       <div className={highlight ? 'text-xl font-bold text-destructive' : 'text-xl font-bold'}>

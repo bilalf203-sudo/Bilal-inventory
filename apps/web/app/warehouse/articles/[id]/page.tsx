@@ -35,49 +35,51 @@ export default function ArticleDetailPage({ params }: { params: Promise<{ id: st
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <Button variant="ghost" size="icon" asChild>
           <Link href={`/warehouse/collections/${a.collectionId}`}>
             <ChevronLeft className="h-4 w-4" />
           </Link>
         </Button>
-        <div className="flex-1">
-          <h1 className="text-2xl font-bold">{a.name}</h1>
+        <div className="min-w-0 flex-1">
+          <h1 className="truncate text-xl font-bold sm:text-2xl">{a.name}</h1>
           <p className="text-sm text-muted-foreground font-mono">{a.code}</p>
         </div>
-        <Can permission={PERMISSIONS.MARKETPLACE_ASSIGN_ARTICLE}>
-          <AssignToMarketplaceDialog
-            article={a}
-            existingAssignments={stock.data?.byMarketplace.map((m) => ({
-              marketplaceId: m.marketplaceId,
-              salePrice: m.salePrice,
-            }))}
-          />
-        </Can>
-        <Can permission={PERMISSIONS.ARTICLE_UPDATE}>
-          <ArticleFormDialog
-            collectionId={a.collectionId}
-            article={a}
-            trigger={<Button variant="outline">Edit</Button>}
-          />
-        </Can>
-        <Can permission={PERMISSIONS.ARTICLE_DELETE}>
-          <ConfirmDialog
-            title={`Delete "${a.name}"?`}
-            description={`This permanently deletes the article "${a.name}" (${a.code}), its sizes and any marketplace assignments.`}
-            confirmLabel="Delete article"
-            onConfirm={async () => {
-              await deleteArticle.mutateAsync(a.id);
-              router.push(`/warehouse/collections/${a.collectionId}`);
-            }}
-            trigger={
-              <Button variant="outline" className="text-destructive hover:text-destructive">
-                <Trash2 className="h-4 w-4" />
-                Delete
-              </Button>
-            }
-          />
-        </Can>
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+          <Can permission={PERMISSIONS.MARKETPLACE_ASSIGN_ARTICLE}>
+            <AssignToMarketplaceDialog
+              article={a}
+              existingAssignments={stock.data?.byMarketplace.map((m) => ({
+                marketplaceId: m.marketplaceId,
+                salePrice: m.salePrice,
+              }))}
+            />
+          </Can>
+          <Can permission={PERMISSIONS.ARTICLE_UPDATE}>
+            <ArticleFormDialog
+              collectionId={a.collectionId}
+              article={a}
+              trigger={<Button variant="outline">Edit</Button>}
+            />
+          </Can>
+          <Can permission={PERMISSIONS.ARTICLE_DELETE}>
+            <ConfirmDialog
+              title={`Delete "${a.name}"?`}
+              description={`This permanently deletes the article "${a.name}" (${a.code}), its sizes and any marketplace assignments.`}
+              confirmLabel="Delete article"
+              onConfirm={async () => {
+                await deleteArticle.mutateAsync(a.id);
+                router.push(`/warehouse/collections/${a.collectionId}`);
+              }}
+              trigger={
+                <Button variant="outline" className="text-destructive hover:text-destructive">
+                  <Trash2 className="h-4 w-4" />
+                  Delete
+                </Button>
+              }
+            />
+          </Can>
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -103,8 +105,8 @@ export default function ArticleDetailPage({ params }: { params: Promise<{ id: st
               {a.sizes.length === 0 ? (
                 <p className="text-sm italic text-muted-foreground">No sizes recorded.</p>
               ) : (
-                <div className="overflow-hidden rounded-md border">
-                  <table className="w-full text-sm">
+                <div className="overflow-x-auto rounded-md border">
+                  <table className="w-full min-w-[20rem] text-sm">
                     <thead className="bg-muted/60 text-xs uppercase text-muted-foreground">
                       <tr>
                         <th className="p-2 text-left font-medium">Size</th>
@@ -132,7 +134,7 @@ export default function ArticleDetailPage({ params }: { params: Promise<{ id: st
               <CardTitle className="text-base">Total in system</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-6 gap-3">
+              <div className="grid grid-cols-3 gap-2 sm:grid-cols-6 sm:gap-3">
                 {SIZES.map((size) => {
                   const row = stock.data?.totals.find((t) => t.size === size);
                   const total = row?.total ?? 0;
@@ -161,7 +163,7 @@ export default function ArticleDetailPage({ params }: { params: Promise<{ id: st
               <CardTitle className="text-base">Warehouse stock</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-6 gap-3">
+              <div className="grid grid-cols-3 gap-2 sm:grid-cols-6 sm:gap-3">
                 {SIZES.map((size) => {
                   const row = stock.data?.totals.find((t) => t.size === size);
                   const warehouse = row?.warehouseUnallocated ?? 0;
@@ -188,17 +190,17 @@ export default function ArticleDetailPage({ params }: { params: Promise<{ id: st
               )}
               {stock.data?.byMarketplace.map((m) => (
                 <div key={m.marketplaceId} className="rounded-lg border p-4">
-                  <div className="mb-3 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex min-w-0 items-center gap-2">
                       <span
-                        className="h-3 w-3 rounded-sm"
+                        className="h-3 w-3 shrink-0 rounded-sm"
                         style={{ backgroundColor: m.marketplaceColor }}
                       />
-                      <span className="font-semibold">{m.marketplaceName}</span>
+                      <span className="truncate font-semibold">{m.marketplaceName}</span>
                     </div>
                     <Badge variant="outline">Sale {formatCurrency(m.salePrice)}</Badge>
                   </div>
-                  <div className="grid grid-cols-6 gap-2">
+                  <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
                     {m.sizes.map((s) => (
                       <div
                         key={s.size}
@@ -208,7 +210,9 @@ export default function ArticleDetailPage({ params }: { params: Promise<{ id: st
                         )}
                       >
                         <div className="font-semibold">{s.size}</div>
-                        <div className={cn('text-lg font-bold', s.isLowStock && 'text-destructive')}>
+                        <div
+                          className={cn('text-lg font-bold', s.isLowStock && 'text-destructive')}
+                        >
                           {s.allocated}
                         </div>
                         <div className="text-[10px] text-muted-foreground">sold {s.sold}</div>

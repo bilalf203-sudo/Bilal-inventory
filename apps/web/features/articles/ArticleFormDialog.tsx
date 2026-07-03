@@ -4,12 +4,7 @@ import { useEffect, useState } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Loader2, Plus } from 'lucide-react';
-import {
-  SIZES,
-  createArticleSchema,
-  type Article,
-  type CreateArticleInput,
-} from '@bilal/shared';
+import { SIZES, createArticleSchema, type Article, type CreateArticleInput } from '@bilal/shared';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -106,11 +101,12 @@ export function ArticleFormDialog({ collectionId, article, trigger }: Props) {
           <DialogTitle>{editing ? 'Edit article' : 'Create article'}</DialogTitle>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          <div className="flex gap-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:gap-6">
             <ImageUpload
               value={article?.imageUrl ?? null}
               onChange={setImageFile}
               disabled={uploadImage.isPending}
+              className="items-center sm:items-start"
             />
             <div className="flex-1 space-y-3">
               <div className="space-y-2">
@@ -120,7 +116,7 @@ export function ArticleFormDialog({ collectionId, article, trigger }: Props) {
                   <p className="text-xs text-destructive">{form.formState.errors.name.message}</p>
                 )}
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="code">SKU Code</Label>
                   <Input id="code" {...form.register('code')} placeholder="NSF-001" />
@@ -165,7 +161,7 @@ export function ArticleFormDialog({ collectionId, article, trigger }: Props) {
 
           <div className="space-y-2">
             <Label>Quantity per size</Label>
-            <div className="grid grid-cols-6 gap-2">
+            <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
               {fields.map((field, idx) => (
                 <div key={field.id} className="space-y-1">
                   <Label className="text-xs text-center block">{field.size}</Label>
@@ -191,10 +187,7 @@ export function ArticleFormDialog({ collectionId, article, trigger }: Props) {
           </div>
 
           <DialogFooter>
-            <Button
-              type="submit"
-              disabled={form.formState.isSubmitting || uploadImage.isPending}
-            >
+            <Button type="submit" disabled={form.formState.isSubmitting || uploadImage.isPending}>
               {(form.formState.isSubmitting || uploadImage.isPending) && (
                 <Loader2 className="h-4 w-4 animate-spin" />
               )}

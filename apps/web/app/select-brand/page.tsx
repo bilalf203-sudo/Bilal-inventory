@@ -21,7 +21,7 @@ export default function SelectBrandPage() {
 
   if (isLoading) {
     return (
-      <div className="flex h-screen items-center justify-center">
+      <div className="flex h-dvh items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     );
@@ -33,7 +33,7 @@ export default function SelectBrandPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted/40 p-4">
+    <div className="flex min-h-dvh items-center justify-center bg-muted/40 p-4">
       <div className="w-full max-w-md space-y-4">
         <div className="flex items-center justify-center gap-2 text-center">
           <Boxes className="h-7 w-7" />
@@ -63,7 +63,11 @@ export default function SelectBrandPage() {
                     className="flex w-full items-center gap-3 rounded-lg border p-3 text-left transition hover:bg-accent"
                   >
                     {m.brand.logoUrl ? (
-                      <img src={m.brand.logoUrl} alt="" className="h-10 w-10 rounded object-cover" />
+                      <img
+                        src={m.brand.logoUrl}
+                        alt=""
+                        className="h-10 w-10 rounded object-cover"
+                      />
                     ) : (
                       <div className="flex h-10 w-10 items-center justify-center rounded bg-primary/10 font-bold uppercase">
                         {m.brand.name.slice(0, 2)}

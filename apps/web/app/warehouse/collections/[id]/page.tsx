@@ -3,7 +3,16 @@
 import { use, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowUpDown, Boxes, ChevronLeft, Loader2, Package, Ruler, SearchX, Trash2 } from 'lucide-react';
+import {
+  ArrowUpDown,
+  Boxes,
+  ChevronLeft,
+  Loader2,
+  Package,
+  Ruler,
+  SearchX,
+  Trash2,
+} from 'lucide-react';
 import { PERMISSIONS, SIZES, type Article } from '@bilal/shared';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -96,38 +105,42 @@ export default function CollectionDetailPage({ params }: { params: Promise<{ id:
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <Button variant="ghost" size="icon" asChild>
           <Link href="/warehouse">
             <ChevronLeft className="h-4 w-4" />
           </Link>
         </Button>
-        <div className="flex-1">
-          <h1 className="text-2xl font-bold">{collection.data?.name ?? '...'}</h1>
+        <div className="min-w-0 flex-1">
+          <h1 className="truncate text-xl font-bold sm:text-2xl">
+            {collection.data?.name ?? '...'}
+          </h1>
           {collection.data?.description && (
             <p className="text-sm text-muted-foreground">{collection.data.description}</p>
           )}
         </div>
-        <Can permission={PERMISSIONS.ARTICLE_CREATE}>
-          <ArticleFormDialog collectionId={id} />
-        </Can>
-        <Can permission={PERMISSIONS.COLLECTION_DELETE}>
-          <ConfirmDialog
-            title={`Delete "${collection.data?.name ?? 'collection'}"?`}
-            description={`This permanently deletes the collection and its ${total} articles, along with their sizes and marketplace assignments.`}
-            confirmLabel="Delete collection"
-            onConfirm={async () => {
-              await deleteCollection.mutateAsync(id);
-              router.push('/warehouse');
-            }}
-            trigger={
-              <Button variant="outline" className="text-destructive hover:text-destructive">
-                <Trash2 className="h-4 w-4" />
-                Delete
-              </Button>
-            }
-          />
-        </Can>
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+          <Can permission={PERMISSIONS.ARTICLE_CREATE}>
+            <ArticleFormDialog collectionId={id} />
+          </Can>
+          <Can permission={PERMISSIONS.COLLECTION_DELETE}>
+            <ConfirmDialog
+              title={`Delete "${collection.data?.name ?? 'collection'}"?`}
+              description={`This permanently deletes the collection and its ${total} articles, along with their sizes and marketplace assignments.`}
+              confirmLabel="Delete collection"
+              onConfirm={async () => {
+                await deleteCollection.mutateAsync(id);
+                router.push('/warehouse');
+              }}
+              trigger={
+                <Button variant="outline" className="text-destructive hover:text-destructive">
+                  <Trash2 className="h-4 w-4" />
+                  Delete
+                </Button>
+              }
+            />
+          </Can>
+        </div>
       </div>
 
       {hasArticles && (
@@ -196,7 +209,7 @@ export default function CollectionDetailPage({ params }: { params: Promise<{ id:
           {visible.map((a) => (
             <div key={a.id} className="group relative">
               <Can permission={PERMISSIONS.ARTICLE_DELETE}>
-                <div className="absolute right-2 top-2 z-10 opacity-0 transition group-hover:opacity-100">
+                <div className="absolute right-2 top-2 z-10 transition lg:opacity-0 lg:group-hover:opacity-100">
                   <ConfirmDialog
                     title={`Delete "${a.name}"?`}
                     description={`This permanently deletes the article "${a.name}" (${a.code}), its sizes and any marketplace assignments.`}
@@ -216,28 +229,28 @@ export default function CollectionDetailPage({ params }: { params: Promise<{ id:
                     <ProductImage src={a.imageUrl} alt={a.name} />
                   </div>
                   <CardContent className="space-y-3 p-4">
-                  <div>
-                    <div className="font-semibold">{a.name}</div>
-                    <div className="text-xs font-mono text-muted-foreground">{a.code}</div>
-                  </div>
-                  <div className="flex flex-wrap gap-1">
-                    {SIZES.map((size) => {
-                      const s = a.sizes.find((x) => x.size === size);
-                      const qty = s?.warehouseQuantity ?? 0;
-                      return (
-                        <StockBadge
-                          key={size}
-                          size={size}
-                          quantity={qty}
-                          isLowStock={qty > 0 && qty < LOW_STOCK_THRESHOLD}
-                        />
-                      );
-                    })}
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    Cost: {formatCurrency(a.purchasePrice)}
-                  </div>
-                </CardContent>
+                    <div>
+                      <div className="font-semibold">{a.name}</div>
+                      <div className="text-xs font-mono text-muted-foreground">{a.code}</div>
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {SIZES.map((size) => {
+                        const s = a.sizes.find((x) => x.size === size);
+                        const qty = s?.warehouseQuantity ?? 0;
+                        return (
+                          <StockBadge
+                            key={size}
+                            size={size}
+                            quantity={qty}
+                            isLowStock={qty > 0 && qty < LOW_STOCK_THRESHOLD}
+                          />
+                        );
+                      })}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      Cost: {formatCurrency(a.purchasePrice)}
+                    </div>
+                  </CardContent>
                 </Card>
               </Link>
             </div>

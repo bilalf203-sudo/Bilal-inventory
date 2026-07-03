@@ -16,7 +16,13 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useRecordSale } from './api';
 
@@ -63,7 +69,7 @@ export function RecordSaleDialog({ marketplaceArticleId, articleName, availableS
           <DialogTitle>Record sale — {articleName}</DialogTitle>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-2">
               <Label>Size</Label>
               <Select value={selectedSize} onValueChange={(v) => form.setValue('size', v as Size)}>
@@ -97,7 +103,11 @@ export function RecordSaleDialog({ marketplaceArticleId, articleName, availableS
           </div>
           <DialogFooter>
             <Button type="submit" disabled={form.formState.isSubmitting}>
-              {form.formState.isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Record'}
+              {form.formState.isSubmitting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                'Record'
+              )}
             </Button>
           </DialogFooter>
         </form>

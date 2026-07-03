@@ -13,7 +13,11 @@ import { SearchInput } from '@/components/common/SearchInput';
 import { FilterSelect } from '@/components/common/FilterSelect';
 import { CollectionFormDialog } from '@/features/collections/CollectionFormDialog';
 import { ImportWarehouseDialog } from '@/features/import/ImportWarehouseDialog';
-import { useClearCollections, useCollections, useDeleteCollection } from '@/features/collections/api';
+import {
+  useClearCollections,
+  useCollections,
+  useDeleteCollection,
+} from '@/features/collections/api';
 import { COLLECTION_SORT_OPTIONS } from '@/lib/filter-options';
 
 export default function WarehousePage() {
@@ -51,9 +55,9 @@ export default function WarehousePage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Warehouse</h1>
+          <h1 className="text-xl font-bold sm:text-2xl">Warehouse</h1>
           <p className="text-sm text-muted-foreground">All collections and their articles</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -145,7 +149,7 @@ export default function WarehousePage() {
                 </Card>
               </Link>
               <Can permission={PERMISSIONS.COLLECTION_DELETE}>
-                <div className="absolute right-2 top-2 opacity-0 transition group-hover:opacity-100">
+                <div className="absolute right-2 top-2 transition lg:opacity-0 lg:group-hover:opacity-100">
                   <ConfirmDialog
                     title={`Delete "${c.name}"?`}
                     description={`This permanently deletes the collection and its ${c.articleCount ?? 0} articles, along with their sizes and marketplace assignments.`}

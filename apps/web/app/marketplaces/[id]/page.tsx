@@ -74,16 +74,18 @@ export default function MarketplaceDetailPage({ params }: { params: Promise<{ id
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-center gap-3">
           {marketplace.data && (
             <span
-              className="h-6 w-6 rounded-md"
+              className="h-6 w-6 shrink-0 rounded-md"
               style={{ backgroundColor: marketplace.data.color }}
             />
           )}
-          <div>
-            <h1 className="text-2xl font-bold">{marketplace.data?.name ?? '...'}</h1>
+          <div className="min-w-0">
+            <h1 className="truncate text-xl font-bold sm:text-2xl">
+              {marketplace.data?.name ?? '...'}
+            </h1>
             {marketplace.data?.description ? (
               <p className="text-sm text-muted-foreground">{marketplace.data.description}</p>
             ) : (

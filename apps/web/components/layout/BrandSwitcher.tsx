@@ -11,7 +11,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { useAuth, useBrand, useBrandActions } from '@/stores';
+import { useAuth, useBrand, useBrandActions, useUIStore } from '@/stores';
 import { CreateBrandDialog } from '@/features/brands/CreateBrandDialog';
 import { cn } from '@/lib/utils';
 
@@ -21,10 +21,12 @@ export function BrandSwitcher() {
   const { setBrandId } = useBrandActions();
   const { user } = useAuth();
   const router = useRouter();
+  const setMobileSidebarOpen = useUIStore((s) => s.setMobileSidebarOpen);
 
   const pick = (id: string) => {
     setBrandId(id);
     setOpen(false);
+    setMobileSidebarOpen(false);
     router.replace('/warehouse');
   };
 

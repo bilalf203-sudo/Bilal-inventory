@@ -13,7 +13,7 @@ export default function AuditLogPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Audit Log</h1>
+        <h1 className="text-xl font-bold sm:text-2xl">Audit Log</h1>
         <p className="text-sm text-muted-foreground">Immutable record of changes to the system.</p>
       </div>
 
@@ -25,11 +25,11 @@ export default function AuditLogPage() {
         <div className="space-y-2">
           {data.map((row) => (
             <Card key={row.id}>
-              <CardContent className="flex items-center gap-4 p-3">
-                <Badge variant="outline" className="font-mono">
+              <CardContent className="flex flex-wrap items-center gap-x-4 gap-y-2 p-3">
+                <Badge variant="outline" className="shrink-0 font-mono">
                   {row.entity}
                 </Badge>
-                <div className="flex-1">
+                <div className="min-w-0 flex-1">
                   <div className="text-sm font-medium">{row.action}</div>
                   <div className="text-xs text-muted-foreground">
                     {row.user?.email ?? 'system'} · {formatDate(row.createdAt)}

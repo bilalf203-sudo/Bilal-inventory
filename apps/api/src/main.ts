@@ -34,9 +34,10 @@ async function bootstrap() {
     logger.log(`Serving local uploads from ${dir} at /uploads`);
   }
 
-  const port = parseInt(process.env.API_PORT ?? '4000', 10);
-  await app.listen(port);
-  logger.log(`API listening on http://localhost:${port}/api/v1`);
+  // Hosts like Render/Railway inject PORT; fall back to API_PORT for local dev.
+  const port = parseInt(process.env.PORT ?? process.env.API_PORT ?? '4000', 10);
+  await app.listen(port, '0.0.0.0');
+  logger.log(`API listening on port ${port} (prefix /api/v1)`);
 }
 
 bootstrap().catch((err) => {

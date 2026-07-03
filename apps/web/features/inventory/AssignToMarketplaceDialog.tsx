@@ -21,7 +21,13 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useMarketplaces } from '@/features/marketplaces/api';
 import { useAssignArticle } from './api';
 
@@ -84,7 +90,7 @@ export function AssignToMarketplaceDialog({ article, existingAssignments = [] }:
           <DialogTitle>Assign "{article.name}" to marketplace</DialogTitle>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-2">
               <Label>Marketplace</Label>
               <Select
@@ -124,7 +130,7 @@ export function AssignToMarketplaceDialog({ article, existingAssignments = [] }:
 
           <div className="space-y-2">
             <Label>Allocate per size (warehouse available shown below)</Label>
-            <div className="grid grid-cols-6 gap-2">
+            <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
               {fields.map((field, idx) => {
                 const warehouseQty =
                   article.sizes.find((s) => s.size === field.size)?.warehouseQuantity ?? 0;
@@ -154,7 +160,11 @@ export function AssignToMarketplaceDialog({ article, existingAssignments = [] }:
 
           <DialogFooter>
             <Button type="submit" disabled={form.formState.isSubmitting}>
-              {form.formState.isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Assign'}
+              {form.formState.isSubmitting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                'Assign'
+              )}
             </Button>
           </DialogFooter>
         </form>
