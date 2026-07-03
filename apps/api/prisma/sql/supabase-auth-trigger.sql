@@ -1,0 +1,35 @@
+-- =====================================================================
+-- Trigger: mirror auth.users into public.users
+--
+-- Apply this AFTER `prisma migrate dev` creates the tables.
+-- Run in Supabase SQL editor (or via the migrate add hook):
+--
+--   psql "$DIRECT_URL" -f apps/api/prisma/migrations/init/migration.sql
+--
+-- This trigger keeps our public.users table in sync with the
+-- Supabase-managed auth.users table.
+-- =====================================================================
+
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.users (id, email, full_name, is_active, created_at, updated_at)
+  VALUES (
+    NEW.id,
+    NEW.email,
+    COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.raw_user_meta_data->>'name', NULL),
+    TRUE,
+    NEW.created_at,
+    NOW()
+  )
+  ON CONFLICT (id) DO UPDATE
+    SET email = EXCLUDED.email,
+        updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT OR UPDATE OF email, raw_user_meta_data ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();

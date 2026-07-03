@@ -1,0 +1,9 @@
+{
+  "extends": "@bilal/tsconfig/nestjs.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "rootDir": ".",
+    "baseUrl": "./"
+  },
+  "include": ["prisma/**/*", "src/**/*"]
+}

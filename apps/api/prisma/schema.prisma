@@ -1,0 +1,311 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// =====================================================================
+// Enums
+// =====================================================================
+
+enum Size {
+  XS
+  S
+  M
+  L
+  XL
+  XXL
+}
+
+enum StockMovementType {
+  INITIAL_STOCK
+  ALLOCATE_TO_MARKETPLACE
+  RETURN_TO_WAREHOUSE
+  SALE
+  ADJUSTMENT
+}
+
+// =====================================================================
+// Auth & RBAC
+// =====================================================================
+
+model User {
+  id              String   @id @db.Uuid
+  email           String   @unique
+  fullName        String?  @map("full_name")
+  isActive        Boolean  @default(true) @map("is_active")
+  isPlatformAdmin Boolean  @default(false) @map("is_platform_admin")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  brandMemberships     BrandMember[]
+  brandsCreated        Brand[]              @relation("BrandCreatedBy")
+  collectionsCreated   Collection[]         @relation("CollectionCreatedBy")
+  articlesCreated      Article[]            @relation("ArticleCreatedBy")
+  marketplaceArticles  MarketplaceArticle[] @relation("MarketplaceArticleAssignedBy")
+  stockMovements       StockMovement[]
+  auditLogs            AuditLog[]
+  settingsUpdates      Settings[]           @relation("SettingsUpdatedBy")
+
+  @@map("users")
+}
+
+model Role {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  rolePermissions RolePermission[]
+  brandMembers    BrandMember[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  rolePermissions RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String @map("role_id") @db.Uuid
+  permissionId String @map("permission_id") @db.Uuid
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+// =====================================================================
+// Brands (multi-tenancy)
+// =====================================================================
+
+model Brand {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String
+  slug        String   @unique
+  description String?
+  logoUrl     String?  @map("logo_url")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdBy   String?  @map("created_by") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  creator     User?           @relation("BrandCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  members     BrandMember[]
+  collections Collection[]
+  marketplaces Marketplace[]
+  settings    Settings[]
+  auditLogs   AuditLog[]
+  stockMovements StockMovement[]
+
+  @@map("brands")
+}
+
+model BrandMember {
+  brandId   String   @map("brand_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  roleId    String   @map("role_id") @db.Uuid
+  invitedBy String?  @map("invited_by") @db.Uuid
+  joinedAt  DateTime @default(now()) @map("joined_at")
+
+  brand Brand @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role  Role  @relation(fields: [roleId], references: [id], onDelete: Restrict)
+
+  @@id([brandId, userId])
+  @@index([userId])
+  @@map("brand_members")
+}
+
+// =====================================================================
+// Warehouse: Collections & Articles
+// =====================================================================
+
+model Collection {
+  id          String   @id @default(uuid()) @db.Uuid
+  brandId     String   @map("brand_id") @db.Uuid
+  name        String
+  description String?
+  createdBy   String?  @map("created_by") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  brand    Brand     @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  creator  User?     @relation("CollectionCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  articles Article[]
+
+  @@index([brandId])
+  @@map("collections")
+}
+
+model Article {
+  id            String   @id @default(uuid()) @db.Uuid
+  collectionId  String   @map("collection_id") @db.Uuid
+  name          String
+  code          String
+  description   String?
+  purchasePrice Decimal  @map("purchase_price") @db.Decimal(12, 2)
+  imageUrl      String?  @map("image_url")
+  createdBy     String?  @map("created_by") @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  collection          Collection           @relation(fields: [collectionId], references: [id], onDelete: Restrict)
+  creator             User?                @relation("ArticleCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  sizes               ArticleSize[]
+  marketplaceArticles MarketplaceArticle[]
+  stockMovements      StockMovement[]
+
+  @@unique([collectionId, code])
+  @@index([collectionId])
+  @@map("articles")
+}
+
+model ArticleSize {
+  id                String   @id @default(uuid()) @db.Uuid
+  articleId         String   @map("article_id") @db.Uuid
+  size              Size
+  sku               String?
+  warehouseQuantity Int      @default(0) @map("warehouse_quantity")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@unique([articleId, size])
+  @@index([sku])
+  @@map("article_sizes")
+}
+
+// =====================================================================
+// Marketplaces & Allocation
+// =====================================================================
+
+model Marketplace {
+  id          String   @id @default(uuid()) @db.Uuid
+  brandId     String   @map("brand_id") @db.Uuid
+  name        String
+  description String?
+  color       String   @default("#3b82f6")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  brand               Brand                @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  marketplaceArticles MarketplaceArticle[]
+  stockMovements      StockMovement[]
+
+  @@unique([brandId, name])
+  @@index([brandId])
+  @@map("marketplaces")
+}
+
+model MarketplaceArticle {
+  id            String   @id @default(uuid()) @db.Uuid
+  marketplaceId String   @map("marketplace_id") @db.Uuid
+  articleId     String   @map("article_id") @db.Uuid
+  salePrice     Decimal  @map("sale_price") @db.Decimal(12, 2)
+  assignedBy    String?  @map("assigned_by") @db.Uuid
+  assignedAt    DateTime @default(now()) @map("assigned_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  marketplace Marketplace               @relation(fields: [marketplaceId], references: [id], onDelete: Cascade)
+  article     Article                   @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  assignee    User?                     @relation("MarketplaceArticleAssignedBy", fields: [assignedBy], references: [id], onDelete: SetNull)
+  stocks      MarketplaceArticleStock[]
+
+  @@unique([marketplaceId, articleId])
+  @@index([marketplaceId])
+  @@index([articleId])
+  @@map("marketplace_articles")
+}
+
+model MarketplaceArticleStock {
+  id                   String   @id @default(uuid()) @db.Uuid
+  marketplaceArticleId String   @map("marketplace_article_id") @db.Uuid
+  size                 Size
+  allocatedQuantity    Int      @default(0) @map("allocated_quantity")
+  soldQuantity         Int      @default(0) @map("sold_quantity")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  marketplaceArticle MarketplaceArticle @relation(fields: [marketplaceArticleId], references: [id], onDelete: Cascade)
+
+  @@unique([marketplaceArticleId, size])
+  @@map("marketplace_article_stocks")
+}
+
+// =====================================================================
+// Audit ledger (immutable)
+// =====================================================================
+
+model StockMovement {
+  id            String            @id @default(uuid()) @db.Uuid
+  brandId       String            @map("brand_id") @db.Uuid
+  articleId     String            @map("article_id") @db.Uuid
+  size          Size
+  marketplaceId String?           @map("marketplace_id") @db.Uuid
+  type          StockMovementType
+  quantity      Int
+  unitPrice     Decimal?          @map("unit_price") @db.Decimal(12, 2)
+  notes         String?
+  createdBy     String?           @map("created_by") @db.Uuid
+  createdAt     DateTime          @default(now()) @map("created_at")
+
+  brand       Brand        @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  article     Article      @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  marketplace Marketplace? @relation(fields: [marketplaceId], references: [id], onDelete: SetNull)
+  creator     User?        @relation(fields: [createdBy], references: [id], onDelete: SetNull)
+
+  @@index([brandId, createdAt])
+  @@index([articleId, size])
+  @@index([marketplaceId])
+  @@map("stock_movements")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  brandId   String?  @map("brand_id") @db.Uuid
+  userId    String?  @map("user_id") @db.Uuid
+  action    String
+  entity    String
+  entityId  String?  @map("entity_id")
+  metadata  Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  brand Brand? @relation(fields: [brandId], references: [id], onDelete: SetNull)
+  user  User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([brandId, createdAt])
+  @@index([entity, entityId])
+  @@index([userId])
+  @@map("audit_logs")
+}
+
+model Settings {
+  brandId   String   @map("brand_id") @db.Uuid
+  key       String
+  value     Json
+  updatedBy String?  @map("updated_by") @db.Uuid
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  brand   Brand @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  updater User? @relation("SettingsUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
+
+  @@id([brandId, key])
+  @@map("settings")
+}

@@ -1,0 +1,127 @@
+'use client';
+
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { LayoutDashboard, Settings as SettingsIcon, ShoppingBag, Users, FileText } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { PERMISSIONS, type Marketplace } from '@bilal/shared';
+import { apiGet } from '@/lib/api-client';
+import { useBrand } from '@/stores';
+import { hasPermission } from '@/lib/permissions';
+import { BrandSwitcher } from './BrandSwitcher';
+import { cn } from '@/lib/utils';
+
+export function Sidebar() {
+  const pathname = usePathname();
+  const { brandId, context } = useBrand();
+
+  const marketplacesQuery = useQuery({
+    queryKey: ['marketplaces', 'list', brandId],
+    queryFn: () => apiGet<Marketplace[]>('/marketplaces'),
+    enabled: !!brandId && hasPermission(context, PERMISSIONS.MARKETPLACE_READ),
+  });
+
+  return (
+    <aside className="flex w-64 shrink-0 flex-col border-r bg-card">
+      <div className="border-b p-3">
+        <BrandSwitcher />
+      </div>
+
+      <nav className="flex-1 space-y-1 overflow-y-auto p-3">
+        <NavItem
+          href="/warehouse"
+          icon={<LayoutDashboard className="h-4 w-4" />}
+          label="Warehouse"
+          active={pathname.startsWith('/warehouse')}
+        />
+
+        <div className="mt-6">
+          <div className="px-3 pb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Marketplaces
+          </div>
+          {marketplacesQuery.data?.map((m) => (
+            <NavItem
+              key={m.id}
+              href={`/marketplaces/${m.id}`}
+              icon={
+                <span
+                  className="h-3 w-3 shrink-0 rounded-sm"
+                  style={{ backgroundColor: m.color }}
+                  aria-hidden
+                />
+              }
+              label={m.name}
+              active={pathname.startsWith(`/marketplaces/${m.id}`)}
+            />
+          ))}
+          {marketplacesQuery.data?.length === 0 && (
+            <div className="px-3 py-2 text-xs italic text-muted-foreground">No marketplaces yet</div>
+          )}
+        </div>
+
+        {hasPermission(context, PERMISSIONS.SETTINGS_READ) && (
+          <div className="mt-6">
+            <div className="px-3 pb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Settings
+            </div>
+            <NavItem
+              href="/settings"
+              icon={<SettingsIcon className="h-4 w-4" />}
+              label="General"
+              active={pathname === '/settings'}
+            />
+            {hasPermission(context, PERMISSIONS.BRAND_MEMBER_READ) && (
+              <NavItem
+                href="/settings/members"
+                icon={<Users className="h-4 w-4" />}
+                label="Members"
+                active={pathname.startsWith('/settings/members')}
+              />
+            )}
+            {hasPermission(context, PERMISSIONS.MARKETPLACE_CREATE) && (
+              <NavItem
+                href="/settings/marketplaces"
+                icon={<ShoppingBag className="h-4 w-4" />}
+                label="Marketplaces"
+                active={pathname.startsWith('/settings/marketplaces')}
+              />
+            )}
+            {hasPermission(context, PERMISSIONS.AUDIT_LOG_READ) && (
+              <NavItem
+                href="/settings/audit"
+                icon={<FileText className="h-4 w-4" />}
+                label="Audit Log"
+                active={pathname.startsWith('/settings/audit')}
+              />
+            )}
+          </div>
+        )}
+      </nav>
+    </aside>
+  );
+}
+
+function NavItem({
+  href,
+  icon,
+  label,
+  active,
+}: {
+  href: string;
+  icon: React.ReactNode;
+  label: string;
+  active: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      className={cn(
+        'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition',
+        active ? 'bg-accent text-accent-foreground' : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
+      )}
+    >
+      {icon}
+      <span className="truncate">{label}</span>
+    </Link>
+  );
+}
