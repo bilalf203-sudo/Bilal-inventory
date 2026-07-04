@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
+  BarChart3,
   LayoutDashboard,
   Settings as SettingsIcon,
   ShoppingBag,
@@ -75,6 +76,14 @@ export function Sidebar() {
             label="Warehouse"
             active={pathname.startsWith('/warehouse')}
           />
+          {hasPermission(context, PERMISSIONS.INVENTORY_READ) && (
+            <NavItem
+              href="/analytics"
+              icon={<BarChart3 className="h-4 w-4" />}
+              label="Analytics"
+              active={pathname.startsWith('/analytics')}
+            />
+          )}
 
           <div className="mt-6">
             <div className="px-3 pb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">

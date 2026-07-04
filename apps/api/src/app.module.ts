@@ -18,6 +18,7 @@ import { CollectionsModule } from './modules/collections/collections.module';
 import { ArticlesModule } from './modules/articles/articles.module';
 import { MarketplacesModule } from './modules/marketplaces/marketplaces.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
+import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { ImportModule } from './modules/import/import.module';
 import { SettingsModule } from './modules/settings/settings.module';
 import { StorageModule } from './modules/storage/storage.module';
@@ -41,6 +42,7 @@ import { AuditModule } from './modules/audit/audit.module';
     ArticlesModule,
     MarketplacesModule,
     InventoryModule,
+    AnalyticsModule,
     ImportModule,
     SettingsModule,
   ],
