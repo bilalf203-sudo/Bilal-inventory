@@ -8,6 +8,7 @@ import {
   Boxes,
   Download,
   Filter,
+  FolderOpen,
   Loader2,
   SearchX,
   ShoppingBag,
@@ -28,8 +29,12 @@ import { SearchInput } from '@/components/common/SearchInput';
 import { FilterSelect } from '@/components/common/FilterSelect';
 import { ProductImage } from '@/components/common/ProductImage';
 import { useAnalyticsSummary } from '@/features/analytics/api';
-import { formatCurrency } from '@/lib/utils';
+import { useCollections } from '@/features/collections/api';
+import { cn, formatCurrency } from '@/lib/utils';
 import { ALL } from '@/lib/filter-options';
+
+/** Sentinel for "articles not assigned to any marketplace" in the marketplace filter. */
+const UNASSIGNED = 'unassigned';
 
 const WAREHOUSE_SEGMENT_COLOR = '#64748b';
 
@@ -54,16 +59,48 @@ function formatUnits(n: number) {
 }
 
 export default function AnalyticsPage() {
-  const { data, isLoading } = useAnalyticsSummary();
+  const [collectionFilter, setCollectionFilter] = useState(ALL);
+  const { data, isLoading, isPlaceholderData } = useAnalyticsSummary(
+    collectionFilter === ALL ? undefined : collectionFilter,
+  );
+  const collections = useCollections();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState(ALL);
+  const [marketplaceFilter, setMarketplaceFilter] = useState(ALL);
   const [sort, setSort] = useState('name-asc');
+
+  const collectionOptions = useMemo(
+    () => [
+      { value: ALL, label: 'All collections' },
+      ...(collections.data ?? []).map((c) => ({ value: c.id, label: c.name })),
+    ],
+    [collections.data],
+  );
+
+  const marketplaceOptions = useMemo(
+    () => [
+      { value: ALL, label: 'All marketplaces' },
+      ...(data?.byMarketplace ?? []).map((m) => ({
+        value: m.marketplaceId,
+        label: m.marketplaceName,
+      })),
+      { value: UNASSIGNED, label: 'Not on any marketplace' },
+    ],
+    [data?.byMarketplace],
+  );
 
   const visible = useMemo(() => {
     if (!data) return [];
     const q = search.trim().toLowerCase();
     const filtered = data.articles.filter((a) => {
       if (status !== ALL && a.status !== status) return false;
+      if (marketplaceFilter !== ALL) {
+        if (marketplaceFilter === UNASSIGNED) {
+          if (a.marketplaces.length > 0) return false;
+        } else if (!a.marketplaces.some((m) => m.marketplaceId === marketplaceFilter)) {
+          return false;
+        }
+      }
       if (!q) return true;
       return (
         a.name.toLowerCase().includes(q) ||
@@ -87,7 +124,7 @@ export default function AnalyticsPage() {
           return a.name.localeCompare(b.name);
       }
     });
-  }, [data, search, status, sort]);
+  }, [data, search, status, marketplaceFilter, sort]);
 
   if (isLoading || !data) {
     return (
@@ -100,7 +137,7 @@ export default function AnalyticsPage() {
   const { totals } = data;
 
   return (
-    <div className="space-y-6">
+    <div className={cn('space-y-6', isPlaceholderData && 'opacity-60 transition-opacity')}>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl font-bold sm:text-2xl">Analytics</h1>
@@ -108,20 +145,42 @@ export default function AnalyticsPage() {
             Stock, value and sales across the warehouse and all marketplaces
           </p>
         </div>
-        {totals.articles > 0 && (
-          <Button variant="outline" onClick={() => exportArticlesCsv(visible)}>
-            <Download className="h-4 w-4" />
-            Export CSV
-          </Button>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          <FilterSelect
+            value={collectionFilter}
+            onValueChange={setCollectionFilter}
+            options={collectionOptions}
+            icon={FolderOpen}
+            ariaLabel="Filter by collection"
+          />
+          {totals.articles > 0 && (
+            <Button variant="outline" onClick={() => exportArticlesCsv(visible)}>
+              <Download className="h-4 w-4" />
+              Export CSV
+            </Button>
+          )}
+        </div>
       </div>
 
       {totals.articles === 0 ? (
-        <EmptyState
-          icon={BarChart3}
-          title="No data to analyze yet"
-          description="Add collections and articles to your warehouse to see stock and sales analytics."
-        />
+        collectionFilter !== ALL ? (
+          <EmptyState
+            icon={BarChart3}
+            title="No articles in this collection"
+            description="This collection has no articles yet. Pick another one or go back to all collections."
+            action={
+              <Button variant="outline" onClick={() => setCollectionFilter(ALL)}>
+                Show all collections
+              </Button>
+            }
+          />
+        ) : (
+          <EmptyState
+            icon={BarChart3}
+            title="No data to analyze yet"
+            description="Add collections and articles to your warehouse to see stock and sales analytics."
+          />
+        )
       ) : (
         <>
           {/* KPI cards: units + value for total / warehouse / marketplaces / sold */}
@@ -204,6 +263,13 @@ export default function AnalyticsPage() {
                     ariaLabel="Filter by stock status"
                   />
                   <FilterSelect
+                    value={marketplaceFilter}
+                    onValueChange={setMarketplaceFilter}
+                    options={marketplaceOptions}
+                    icon={ShoppingBag}
+                    ariaLabel="Filter by marketplace"
+                  />
+                  <FilterSelect
                     value={sort}
                     onValueChange={setSort}
                     options={ARTICLE_SORT_OPTIONS}
@@ -227,6 +293,7 @@ export default function AnalyticsPage() {
                       onClick={() => {
                         setSearch('');
                         setStatus(ALL);
+                        setMarketplaceFilter(ALL);
                       }}
                     >
                       Clear filters

@@ -21,6 +21,9 @@ import { SearchInput } from '@/components/common/SearchInput';
 import { FilterSelect, type FilterOption } from '@/components/common/FilterSelect';
 import { ProductImage } from '@/components/common/ProductImage';
 import { RecordSaleDialog } from '@/features/inventory/RecordSaleDialog';
+import { UndoSaleDialog } from '@/features/inventory/UndoSaleDialog';
+import { ReturnToWarehouseDialog } from '@/features/inventory/ReturnToWarehouseDialog';
+import { EditSalePriceDialog } from '@/features/inventory/EditSalePriceDialog';
 import {
   useMarketplace,
   useMarketplaceArticles,
@@ -210,6 +213,10 @@ export default function MarketplaceCollectionPage({
               size,
               allocated: stockBySize.get(size)?.allocated ?? 0,
             }));
+            const sizesWithSold = SIZES.map((size) => ({
+              size,
+              sold: stockBySize.get(size)?.sold ?? 0,
+            }));
 
             return (
               <Card key={ma.id}>
@@ -265,21 +272,46 @@ export default function MarketplaceCollectionPage({
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between gap-4 sm:shrink-0 sm:justify-end">
+                  <div className="flex flex-col gap-3 sm:shrink-0 sm:items-end">
                     <div className="text-right">
-                      <div className="text-lg font-bold">{formatCurrency(ma.salePrice)}</div>
+                      <div className="flex items-center gap-1 sm:justify-end">
+                        <span className="text-lg font-bold">{formatCurrency(ma.salePrice)}</span>
+                        <Can permission={PERMISSIONS.MARKETPLACE_SET_PRICE}>
+                          <EditSalePriceDialog
+                            marketplaceArticleId={ma.id}
+                            articleName={ma.article.name}
+                            currentPrice={Number(ma.salePrice)}
+                          />
+                        </Can>
+                      </div>
                       <div className="text-xs text-muted-foreground">
                         Cost {formatCurrency(ma.article.purchasePrice)}
                       </div>
                     </div>
 
-                    <Can permission={PERMISSIONS.SALE_RECORD}>
-                      <RecordSaleDialog
-                        marketplaceArticleId={ma.id}
-                        articleName={ma.article.name}
-                        availableSizes={sizesForSale}
-                      />
-                    </Can>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Can permission={PERMISSIONS.SALE_RECORD}>
+                        <RecordSaleDialog
+                          marketplaceArticleId={ma.id}
+                          articleName={ma.article.name}
+                          availableSizes={sizesForSale}
+                        />
+                      </Can>
+                      <Can permission={PERMISSIONS.SALE_RECORD}>
+                        <UndoSaleDialog
+                          marketplaceArticleId={ma.id}
+                          articleName={ma.article.name}
+                          sizes={sizesWithSold}
+                        />
+                      </Can>
+                      <Can permission={PERMISSIONS.INVENTORY_RETURN}>
+                        <ReturnToWarehouseDialog
+                          marketplaceArticleId={ma.id}
+                          articleName={ma.article.name}
+                          sizes={sizesForSale}
+                        />
+                      </Can>
+                    </div>
                   </div>
                 </CardContent>
               </Card>

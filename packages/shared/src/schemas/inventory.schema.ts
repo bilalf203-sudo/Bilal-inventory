@@ -56,6 +56,16 @@ export const returnToWarehouseSchema = z.object({
 
 export type ReturnToWarehouseInput = z.infer<typeof returnToWarehouseSchema>;
 
+/** Reverses a mistakenly recorded sale: sold units go back to allocated stock. */
+export const undoSaleSchema = z.object({
+  marketplaceArticleId: z.string().uuid(),
+  size: sizeEnumSchema,
+  quantity: z.coerce.number().int().positive(),
+  notes: z.string().max(500).optional(),
+});
+
+export type UndoSaleInput = z.infer<typeof undoSaleSchema>;
+
 // ---------------------------------------------------------------------------
 // Daily sale report (per marketplace): upload a fresh stock snapshot, diff it
 // against current allocated stock to learn how many pieces sold, then deduct.

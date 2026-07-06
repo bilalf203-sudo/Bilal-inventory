@@ -16,6 +16,7 @@ import {
   returnToWarehouseSchema,
   salesReportCommitSchema,
   salesReportPreviewSchema,
+  undoSaleSchema,
   updateSalePriceSchema,
   type AllocateMoreInput,
   type AssignArticleToMarketplaceInput,
@@ -23,6 +24,7 @@ import {
   type ReturnToWarehouseInput,
   type SalesReportCommitInput,
   type SalesReportPreviewInput,
+  type UndoSaleInput,
   type UpdateSalePriceInput,
 } from '@bilal/shared';
 import { Permissions } from '../../common/decorators/permissions.decorator';
@@ -75,6 +77,16 @@ export class InventoryController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.inventory.recordSale(brandId, dto, user.id);
+  }
+
+  @Post('sales/undo')
+  @Permissions(PERMISSIONS.SALE_RECORD)
+  undoSale(
+    @CurrentBrand() brandId: string,
+    @Body(new ZodValidationPipe(undoSaleSchema)) dto: UndoSaleInput,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.inventory.undoSale(brandId, dto, user.id);
   }
 
   @Post('return')

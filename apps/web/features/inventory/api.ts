@@ -11,6 +11,7 @@ import type {
   SalesReportCommitResult,
   SalesReportPreview,
   SalesReportPreviewInput,
+  UndoSaleInput,
   UpdateSalePriceInput,
 } from '@bilal/shared';
 import { apiPatch, apiPost } from '@/lib/api-client';
@@ -19,6 +20,7 @@ function invalidateAll(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: ['articles'] });
   qc.invalidateQueries({ queryKey: ['marketplaces'] });
   qc.invalidateQueries({ queryKey: ['collections'] });
+  qc.invalidateQueries({ queryKey: ['analytics'] });
 }
 
 export function useAssignArticle() {
@@ -64,6 +66,19 @@ export function useRecordSale() {
     onSuccess: () => {
       invalidateAll(qc);
       toast.success('Sale recorded');
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+/** Reverses a mistakenly recorded sale: sold units go back to marketplace stock. */
+export function useUndoSale() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: UndoSaleInput) => apiPost('/inventory/sales/undo', input),
+    onSuccess: () => {
+      invalidateAll(qc);
+      toast.success('Sale reversed — stock is back on the marketplace');
     },
     onError: (e: Error) => toast.error(e.message),
   });

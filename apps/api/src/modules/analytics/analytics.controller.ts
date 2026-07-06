@@ -1,4 +1,4 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, ParseUUIDPipe, Query } from '@nestjs/common';
 import { PERMISSIONS } from '@bilal/shared';
 import { Permissions } from '../../common/decorators/permissions.decorator';
 import { CurrentBrand } from '../../common/decorators/current-brand.decorator';
@@ -10,7 +10,10 @@ export class AnalyticsController {
 
   @Get('summary')
   @Permissions(PERMISSIONS.INVENTORY_READ)
-  summary(@CurrentBrand() brandId: string) {
-    return this.analytics.getSummary(brandId);
+  summary(
+    @CurrentBrand() brandId: string,
+    @Query('collectionId', new ParseUUIDPipe({ optional: true })) collectionId?: string,
+  ) {
+    return this.analytics.getSummary(brandId, collectionId);
   }
 }

@@ -22,17 +22,19 @@ function round2(n: number): number {
 export class AnalyticsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getSummary(brandId: string): Promise<AnalyticsSummary> {
+  async getSummary(brandId: string, collectionId?: string): Promise<AnalyticsSummary> {
     const [threshold, collections, marketplaces, articles] = await Promise.all([
       this.getLowStockThreshold(brandId),
-      this.prisma.collection.count({ where: { brandId } }),
+      this.prisma.collection.count({
+        where: { brandId, ...(collectionId ? { id: collectionId } : {}) },
+      }),
       this.prisma.marketplace.findMany({
         where: { brandId },
         select: { id: true, name: true, color: true },
         orderBy: { name: 'asc' },
       }),
       this.prisma.article.findMany({
-        where: { collection: { brandId } },
+        where: { collection: { brandId }, ...(collectionId ? { collectionId } : {}) },
         select: {
           id: true,
           code: true,

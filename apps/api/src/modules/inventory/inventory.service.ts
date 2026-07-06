@@ -21,6 +21,7 @@ import {
   type SalesReportPreviewInput,
   type SalesReportPreviewItem,
   type Size,
+  type UndoSaleInput,
   type UpdateSalePriceInput,
 } from '@bilal/shared';
 import type { Prisma } from '@prisma/client';
@@ -43,6 +44,11 @@ const saleIndexInclude = {
 type SaleIndexMarketplaceArticle = Prisma.MarketplaceArticleGetPayload<{
   include: typeof saleIndexInclude;
 }>;
+
+// Prisma interactive transactions default to a 5s timeout, which multi-step
+// flows exceed against a remote (pooled) database — the transaction then dies
+// mid-flight with "Transaction not found". Give them generous headroom.
+const TX_OPTS = { timeout: 30_000, maxWait: 10_000 } as const;
 
 interface SkuIndexEntry {
   marketplaceArticleId: string;
@@ -124,7 +130,7 @@ export class InventoryService {
           stocks: { orderBy: { size: 'asc' } },
         },
       });
-    });
+    }, TX_OPTS);
   }
 
   async allocateMore(brandId: string, dto: AllocateMoreInput, userId: string) {
@@ -159,7 +165,7 @@ export class InventoryService {
           stocks: { orderBy: { size: 'asc' } },
         },
       });
-    });
+    }, TX_OPTS);
   }
 
   async updateSalePrice(brandId: string, dto: UpdateSalePriceInput) {
@@ -211,7 +217,54 @@ export class InventoryService {
       });
 
       return tx.marketplaceArticleStock.findUnique({ where: { id: stock.id } });
-    });
+    }, TX_OPTS);
+  }
+
+  /**
+   * Reverses a mistakenly recorded sale: moves units from sold back to the
+   * marketplace's allocated stock and writes a compensating ADJUSTMENT movement
+   * (positive quantity, priced at the current sale price) so the ledger shows
+   * both the original sale and its correction.
+   */
+  async undoSale(brandId: string, dto: UndoSaleInput, userId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const link = await tx.marketplaceArticle.findFirst({
+        where: { id: dto.marketplaceArticleId, marketplace: { brandId } },
+        include: { stocks: true },
+      });
+      if (!link) throw new NotFoundException(`Allocation ${dto.marketplaceArticleId} not found`);
+
+      const stock = link.stocks.find((s) => s.size === dto.size);
+      if (!stock || stock.soldQuantity < dto.quantity) {
+        throw new BadRequestException(
+          `Cannot undo ${dto.quantity} sold for size ${dto.size} (only ${stock?.soldQuantity ?? 0} recorded as sold)`,
+        );
+      }
+
+      await tx.marketplaceArticleStock.update({
+        where: { id: stock.id },
+        data: {
+          soldQuantity: { decrement: dto.quantity },
+          allocatedQuantity: { increment: dto.quantity },
+        },
+      });
+
+      await tx.stockMovement.create({
+        data: {
+          brandId,
+          articleId: link.articleId,
+          size: dto.size,
+          marketplaceId: link.marketplaceId,
+          type: STOCK_MOVEMENT_TYPES.ADJUSTMENT,
+          quantity: dto.quantity,
+          unitPrice: link.salePrice,
+          notes: dto.notes ?? 'Sale correction (undo)',
+          createdBy: userId,
+        },
+      });
+
+      return tx.marketplaceArticleStock.findUnique({ where: { id: stock.id } });
+    }, TX_OPTS);
   }
 
   async returnToWarehouse(brandId: string, dto: ReturnToWarehouseInput, userId: string) {
@@ -257,7 +310,7 @@ export class InventoryService {
       });
 
       return { ok: true };
-    });
+    }, TX_OPTS);
   }
 
   async getArticleStockBreakdown(brandId: string, articleId: string): Promise<ArticleStockBreakdown> {
