@@ -12,7 +12,9 @@ import type {
   SalesReportPreview,
   SalesReportPreviewInput,
   UndoSaleInput,
+  UndoWarehouseSaleInput,
   UpdateSalePriceInput,
+  WarehouseSaleInput,
 } from '@bilal/shared';
 import { apiPatch, apiPost } from '@/lib/api-client';
 
@@ -66,6 +68,33 @@ export function useRecordSale() {
     onSuccess: () => {
       invalidateAll(qc);
       toast.success('Sale recorded');
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+/** Records a sale made directly from the warehouse (not through a marketplace). */
+export function useRecordWarehouseSale() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: WarehouseSaleInput) => apiPost('/inventory/warehouse-sales', input),
+    onSuccess: () => {
+      invalidateAll(qc);
+      toast.success('Warehouse sale recorded');
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+/** Reverses a mistakenly recorded warehouse sale: units go back into warehouse stock. */
+export function useUndoWarehouseSale() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: UndoWarehouseSaleInput) =>
+      apiPost('/inventory/warehouse-sales/undo', input),
+    onSuccess: () => {
+      invalidateAll(qc);
+      toast.success('Sale reversed — stock is back in the warehouse');
     },
     onError: (e: Error) => toast.error(e.message),
   });

@@ -66,6 +66,32 @@ export const undoSaleSchema = z.object({
 
 export type UndoSaleInput = z.infer<typeof undoSaleSchema>;
 
+/** A sale made directly from the warehouse (not through a marketplace). */
+export const warehouseSaleSchema = z.object({
+  articleId: z.string().uuid(),
+  size: sizeEnumSchema,
+  quantity: z.coerce.number().int().positive(),
+  unitPrice: z.coerce.number().positive(),
+  notes: z.string().max(500).optional(),
+});
+
+export type WarehouseSaleInput = z.infer<typeof warehouseSaleSchema>;
+
+/**
+ * Reverses a mistakenly recorded warehouse sale. `unitPrice` should match the
+ * price on the original sale so revenue totals stay accurate; it's optional
+ * because the caller may not know it.
+ */
+export const undoWarehouseSaleSchema = z.object({
+  articleId: z.string().uuid(),
+  size: sizeEnumSchema,
+  quantity: z.coerce.number().int().positive(),
+  unitPrice: z.coerce.number().positive().optional(),
+  notes: z.string().max(500).optional(),
+});
+
+export type UndoWarehouseSaleInput = z.infer<typeof undoWarehouseSaleSchema>;
+
 // ---------------------------------------------------------------------------
 // Daily sale report (per marketplace): upload a fresh stock snapshot, diff it
 // against current allocated stock to learn how many pieces sold, then deduct.

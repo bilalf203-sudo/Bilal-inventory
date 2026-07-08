@@ -3,7 +3,7 @@
 import { use } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, Loader2, Trash2 } from 'lucide-react';
+import { ChevronLeft, History, Loader2, Trash2 } from 'lucide-react';
 import { PERMISSIONS, SIZES } from '@bilal/shared';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -13,14 +13,23 @@ import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { ProductImage } from '@/components/common/ProductImage';
 import { ArticleFormDialog } from '@/features/articles/ArticleFormDialog';
 import { AssignToMarketplaceDialog } from '@/features/inventory/AssignToMarketplaceDialog';
-import { useArticle, useArticleStock, useDeleteArticle } from '@/features/articles/api';
-import { cn, formatCurrency } from '@/lib/utils';
+import { WarehouseSaleDialog } from '@/features/inventory/WarehouseSaleDialog';
+import { UndoWarehouseSaleDialog } from '@/features/inventory/UndoWarehouseSaleDialog';
+import {
+  useArticle,
+  useArticleMovements,
+  useArticleStock,
+  useDeleteArticle,
+  type StockMovementEntry,
+} from '@/features/articles/api';
+import { cn, formatCurrency, formatDate } from '@/lib/utils';
 
 export default function ArticleDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
   const article = useArticle(id);
   const stock = useArticleStock(id);
+  const movements = useArticleMovements(id);
   const deleteArticle = useDeleteArticle();
 
   if (article.isLoading) {
@@ -54,6 +63,12 @@ export default function ArticleDetailPage({ params }: { params: Promise<{ id: st
                 salePrice: m.salePrice,
               }))}
             />
+          </Can>
+          <Can permission={PERMISSIONS.SALE_RECORD}>
+            <WarehouseSaleDialog article={a} />
+          </Can>
+          <Can permission={PERMISSIONS.SALE_RECORD}>
+            <UndoWarehouseSaleDialog article={a} />
           </Can>
           <Can permission={PERMISSIONS.ARTICLE_UPDATE}>
             <ArticleFormDialog
@@ -112,6 +127,7 @@ export default function ArticleDetailPage({ params }: { params: Promise<{ id: st
                         <th className="p-2 text-left font-medium">Size</th>
                         <th className="p-2 text-left font-medium">SKU</th>
                         <th className="p-2 text-right font-medium">Warehouse qty</th>
+                        <th className="p-2 text-right font-medium">Sold from warehouse</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -120,6 +136,9 @@ export default function ArticleDetailPage({ params }: { params: Promise<{ id: st
                           <td className="p-2 font-semibold">{s.size}</td>
                           <td className="p-2 font-mono text-xs">{s.sku ?? '—'}</td>
                           <td className="p-2 text-right tabular-nums">{s.warehouseQuantity}</td>
+                          <td className="p-2 text-right tabular-nums text-muted-foreground">
+                            {s.soldQuantity ?? 0}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -167,10 +186,14 @@ export default function ArticleDetailPage({ params }: { params: Promise<{ id: st
                 {SIZES.map((size) => {
                   const row = stock.data?.totals.find((t) => t.size === size);
                   const warehouse = row?.warehouseUnallocated ?? 0;
+                  const sold = a.sizes.find((s) => s.size === size)?.soldQuantity ?? 0;
                   return (
                     <div key={size} className="rounded-lg border p-3 text-center">
                       <div className="text-xs font-semibold text-muted-foreground">{size}</div>
                       <div className="text-xl font-bold">{warehouse}</div>
+                      {sold > 0 && (
+                        <div className="text-[10px] text-muted-foreground">sold {sold}</div>
+                      )}
                     </div>
                   );
                 })}
@@ -223,8 +246,79 @@ export default function ArticleDetailPage({ params }: { params: Promise<{ id: st
               ))}
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <History className="h-4 w-4" />
+                Activity
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {movements.isLoading ? (
+                <div className="flex justify-center py-6">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : !movements.data || movements.data.length === 0 ? (
+                <p className="text-sm italic text-muted-foreground">No stock activity yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {movements.data.map((m) => (
+                    <MovementRow key={m.id} movement={m} />
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
+    </div>
+  );
+}
+
+const MOVEMENT_LABELS: Record<
+  StockMovementEntry['type'],
+  { label: string; variant: 'secondary' | 'outline' | 'success' | 'warning' }
+> = {
+  INITIAL_STOCK: { label: 'Initial stock', variant: 'secondary' },
+  ALLOCATE_TO_MARKETPLACE: { label: 'Allocated', variant: 'outline' },
+  RETURN_TO_WAREHOUSE: { label: 'Returned', variant: 'outline' },
+  SALE: { label: 'Sale', variant: 'success' },
+  ADJUSTMENT: { label: 'Adjustment', variant: 'warning' },
+};
+
+function MovementRow({ movement: m }: { movement: StockMovementEntry }) {
+  const meta = MOVEMENT_LABELS[m.type];
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md border p-2 text-sm">
+      <Badge variant={meta.variant} className="shrink-0">
+        {meta.label}
+      </Badge>
+      <span className="font-mono text-xs font-bold">{m.size}</span>
+      <span className={cn('font-semibold tabular-nums', m.quantity < 0 && 'text-destructive')}>
+        {m.quantity > 0 ? `+${m.quantity}` : m.quantity}
+      </span>
+      {m.unitPrice != null && (
+        <span className="text-xs text-muted-foreground">@ {formatCurrency(m.unitPrice)}</span>
+      )}
+      <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        {m.marketplace ? (
+          <>
+            <span
+              className="h-2 w-2 shrink-0 rounded-sm"
+              style={{ backgroundColor: m.marketplace.color }}
+              aria-hidden
+            />
+            {m.marketplace.name}
+          </>
+        ) : (
+          'Warehouse'
+        )}
+      </span>
+      {m.notes && <span className="min-w-0 flex-1 truncate text-xs italic">{m.notes}</span>}
+      <span className="ml-auto shrink-0 text-xs text-muted-foreground">
+        {formatDate(m.createdAt)}
+      </span>
     </div>
   );
 }

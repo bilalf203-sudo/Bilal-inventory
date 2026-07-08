@@ -43,10 +43,10 @@ export function ArticleFormDialog({ collectionId, article, trigger }: Props) {
       description: article?.description ?? '',
       purchasePrice: Number(article?.purchasePrice ?? 0),
       imageUrl: article?.imageUrl ?? '',
-      sizes: SIZES.map((size) => ({
-        size,
-        quantity: article?.sizes.find((s) => s.size === size)?.warehouseQuantity ?? 0,
-      })),
+      sizes: SIZES.map((size) => {
+        const existing = article?.sizes.find((s) => s.size === size);
+        return { size, quantity: existing?.warehouseQuantity ?? 0, sku: existing?.sku ?? null };
+      }),
     },
   });
 
@@ -61,10 +61,10 @@ export function ArticleFormDialog({ collectionId, article, trigger }: Props) {
       description: article?.description ?? '',
       purchasePrice: Number(article?.purchasePrice ?? 0),
       imageUrl: article?.imageUrl ?? '',
-      sizes: SIZES.map((size) => ({
-        size,
-        quantity: article?.sizes.find((s) => s.size === size)?.warehouseQuantity ?? 0,
-      })),
+      sizes: SIZES.map((size) => {
+        const existing = article?.sizes.find((s) => s.size === size);
+        return { size, quantity: existing?.warehouseQuantity ?? 0, sku: existing?.sku ?? null };
+      }),
     });
   }, [open, article, collectionId, form]);
 
@@ -160,27 +160,53 @@ export function ArticleFormDialog({ collectionId, article, trigger }: Props) {
           </div>
 
           <div className="space-y-2">
-            <Label>Quantity per size</Label>
-            <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+            <Label>Stock &amp; SKU per size</Label>
+            <div className="space-y-2">
+              <div className="grid grid-cols-[2.5rem_1fr_2fr] items-center gap-2 px-1 text-xs text-muted-foreground">
+                <span>Size</span>
+                <span>Quantity</span>
+                <span>SKU (optional)</span>
+              </div>
               {fields.map((field, idx) => (
-                <div key={field.id} className="space-y-1">
-                  <Label className="text-xs text-center block">{field.size}</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    {...form.register(`sizes.${idx}.quantity`, {
-                      setValueAs: (v) => {
-                        const n = Number(v);
-                        return v === '' || v === null || v === undefined || Number.isNaN(n) ? 0 : n;
-                      },
-                    })}
-                    className="text-center"
-                  />
-                  {form.formState.errors.sizes?.[idx]?.quantity && (
-                    <p className="text-xs text-destructive text-center">
-                      {form.formState.errors.sizes[idx]?.quantity?.message}
-                    </p>
-                  )}
+                <div key={field.id} className="grid grid-cols-[2.5rem_1fr_2fr] items-start gap-2">
+                  <Label className="pt-2.5 pl-1 text-xs font-bold">{field.size}</Label>
+                  <div className="space-y-1">
+                    <Input
+                      type="number"
+                      min={0}
+                      {...form.register(`sizes.${idx}.quantity`, {
+                        setValueAs: (v) => {
+                          const n = Number(v);
+                          return v === '' || v === null || v === undefined || Number.isNaN(n)
+                            ? 0
+                            : n;
+                        },
+                      })}
+                      className="text-center"
+                    />
+                    {form.formState.errors.sizes?.[idx]?.quantity && (
+                      <p className="text-xs text-destructive">
+                        {form.formState.errors.sizes[idx]?.quantity?.message}
+                      </p>
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <Input
+                      placeholder={`e.g. ${form.watch('code') || 'CODE'}-${field.size}`}
+                      {...form.register(`sizes.${idx}.sku`, {
+                        setValueAs: (v) => {
+                          const t = typeof v === 'string' ? v.trim() : v;
+                          return t ? t : null;
+                        },
+                      })}
+                      className="font-mono text-xs"
+                    />
+                    {form.formState.errors.sizes?.[idx]?.sku && (
+                      <p className="text-xs text-destructive">
+                        {form.formState.errors.sizes[idx]?.sku?.message}
+                      </p>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>

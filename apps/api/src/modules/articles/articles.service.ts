@@ -130,11 +130,17 @@ export class ArticlesService {
             }
           } else {
             const delta = size.quantity - existing.warehouseQuantity;
-            if (delta !== 0) {
+            const skuChanged = size.sku !== undefined && (size.sku || null) !== existing.sku;
+            if (delta !== 0 || skuChanged) {
               await tx.articleSize.update({
                 where: { id: existing.id },
-                data: { warehouseQuantity: size.quantity },
+                data: {
+                  warehouseQuantity: size.quantity,
+                  ...(skuChanged ? { sku: size.sku || null } : {}),
+                },
               });
+            }
+            if (delta !== 0) {
               await tx.stockMovement.create({
                 data: {
                   brandId,

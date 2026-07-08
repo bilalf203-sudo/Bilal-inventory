@@ -17,7 +17,9 @@ import {
   salesReportCommitSchema,
   salesReportPreviewSchema,
   undoSaleSchema,
+  undoWarehouseSaleSchema,
   updateSalePriceSchema,
+  warehouseSaleSchema,
   type AllocateMoreInput,
   type AssignArticleToMarketplaceInput,
   type RecordSaleInput,
@@ -25,7 +27,9 @@ import {
   type SalesReportCommitInput,
   type SalesReportPreviewInput,
   type UndoSaleInput,
+  type UndoWarehouseSaleInput,
   type UpdateSalePriceInput,
+  type WarehouseSaleInput,
 } from '@bilal/shared';
 import { Permissions } from '../../common/decorators/permissions.decorator';
 import {
@@ -77,6 +81,26 @@ export class InventoryController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.inventory.recordSale(brandId, dto, user.id);
+  }
+
+  @Post('warehouse-sales')
+  @Permissions(PERMISSIONS.SALE_RECORD)
+  recordWarehouseSale(
+    @CurrentBrand() brandId: string,
+    @Body(new ZodValidationPipe(warehouseSaleSchema)) dto: WarehouseSaleInput,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.inventory.recordWarehouseSale(brandId, dto, user.id);
+  }
+
+  @Post('warehouse-sales/undo')
+  @Permissions(PERMISSIONS.SALE_RECORD)
+  undoWarehouseSale(
+    @CurrentBrand() brandId: string,
+    @Body(new ZodValidationPipe(undoWarehouseSaleSchema)) dto: UndoWarehouseSaleInput,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.inventory.undoWarehouseSale(brandId, dto, user.id);
   }
 
   @Post('sales/undo')

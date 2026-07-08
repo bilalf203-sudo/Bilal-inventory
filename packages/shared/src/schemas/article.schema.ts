@@ -32,6 +32,8 @@ export const articleSizeSchema = z.object({
   size: sizeEnumSchema,
   sku: z.string().nullable().optional(),
   warehouseQuantity: z.number().int().nonnegative(),
+  /** Units sold directly from the warehouse (not through a marketplace). */
+  soldQuantity: z.number().int().nonnegative().default(0),
 });
 
 export const articleSchema = z.object({

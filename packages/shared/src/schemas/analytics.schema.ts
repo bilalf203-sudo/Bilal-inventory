@@ -26,9 +26,14 @@ export interface AnalyticsTotals {
   totalUnits: number;
   /** All stock on hand (warehouse + allocated) × purchase price. */
   totalCostValue: number;
+  /** Total sold: marketplace sales + direct warehouse sales. */
   soldUnits: number;
-  /** Sold units × sale price. */
+  /** Total revenue: marketplace sales + direct warehouse sales. */
   revenue: number;
+  /** Units sold directly from the warehouse (subset of soldUnits). */
+  warehouseSoldUnits: number;
+  /** Revenue from direct warehouse sales (subset of revenue). */
+  warehouseRevenue: number;
   lowStockArticles: number;
   outOfStockArticles: number;
 }
@@ -77,10 +82,13 @@ export interface ArticleAnalyticsRow {
   allocatedUnits: number;
   /** warehouseUnits + allocatedUnits. */
   totalUnits: number;
+  /** Total sold: marketplace sales + direct warehouse sales. */
   soldUnits: number;
+  /** Units sold directly from the warehouse (subset of soldUnits). */
+  warehouseSoldUnits: number;
   /** totalUnits × purchase price (stock on hand, at cost). */
   stockValue: number;
-  /** Sold units × sale price, summed across marketplaces. */
+  /** Marketplace sales at sale price + direct warehouse sales at recorded price. */
   revenue: number;
   status: ArticleStockStatus;
   marketplaces: ArticleMarketplaceStock[];

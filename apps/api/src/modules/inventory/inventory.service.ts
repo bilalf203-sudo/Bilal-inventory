@@ -22,7 +22,9 @@ import {
   type SalesReportPreviewItem,
   type Size,
   type UndoSaleInput,
+  type UndoWarehouseSaleInput,
   type UpdateSalePriceInput,
+  type WarehouseSaleInput,
 } from '@bilal/shared';
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
@@ -217,6 +219,99 @@ export class InventoryService {
       });
 
       return tx.marketplaceArticleStock.findUnique({ where: { id: stock.id } });
+    }, TX_OPTS);
+  }
+
+  /**
+   * Records a sale made directly from the warehouse (not through a marketplace):
+   * decrements warehouse stock, increments the size's direct-sold counter, and
+   * writes a SALE movement with no marketplace at the entered price.
+   */
+  async recordWarehouseSale(brandId: string, dto: WarehouseSaleInput, userId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const article = await tx.article.findFirst({
+        where: { id: dto.articleId, collection: { brandId } },
+        include: { sizes: true },
+      });
+      if (!article) throw new NotFoundException(`Article ${dto.articleId} not found in this brand`);
+
+      const row = article.sizes.find((s) => s.size === dto.size);
+      if (!row || row.warehouseQuantity < dto.quantity) {
+        throw new BadRequestException(
+          `Insufficient warehouse stock for size ${dto.size} (have ${row?.warehouseQuantity ?? 0}, need ${dto.quantity})`,
+        );
+      }
+
+      await tx.articleSize.update({
+        where: { id: row.id },
+        data: {
+          warehouseQuantity: { decrement: dto.quantity },
+          soldQuantity: { increment: dto.quantity },
+        },
+      });
+
+      await tx.stockMovement.create({
+        data: {
+          brandId,
+          articleId: dto.articleId,
+          size: dto.size,
+          marketplaceId: null,
+          type: STOCK_MOVEMENT_TYPES.SALE,
+          quantity: -dto.quantity,
+          unitPrice: dto.unitPrice,
+          notes: dto.notes ?? 'Sold directly from warehouse',
+          createdBy: userId,
+        },
+      });
+
+      return tx.articleSize.findUnique({ where: { id: row.id } });
+    }, TX_OPTS);
+  }
+
+  /**
+   * Reverses a mistakenly recorded warehouse sale: sold units go back into
+   * warehouse stock, and a compensating ADJUSTMENT movement (positive quantity,
+   * no marketplace) is written. When a unit price is supplied it offsets the
+   * original sale in revenue reports.
+   */
+  async undoWarehouseSale(brandId: string, dto: UndoWarehouseSaleInput, userId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const article = await tx.article.findFirst({
+        where: { id: dto.articleId, collection: { brandId } },
+        include: { sizes: true },
+      });
+      if (!article) throw new NotFoundException(`Article ${dto.articleId} not found in this brand`);
+
+      const row = article.sizes.find((s) => s.size === dto.size);
+      if (!row || row.soldQuantity < dto.quantity) {
+        throw new BadRequestException(
+          `Cannot undo ${dto.quantity} sold for size ${dto.size} (only ${row?.soldQuantity ?? 0} recorded as sold from warehouse)`,
+        );
+      }
+
+      await tx.articleSize.update({
+        where: { id: row.id },
+        data: {
+          soldQuantity: { decrement: dto.quantity },
+          warehouseQuantity: { increment: dto.quantity },
+        },
+      });
+
+      await tx.stockMovement.create({
+        data: {
+          brandId,
+          articleId: dto.articleId,
+          size: dto.size,
+          marketplaceId: null,
+          type: STOCK_MOVEMENT_TYPES.ADJUSTMENT,
+          quantity: dto.quantity,
+          unitPrice: dto.unitPrice ?? null,
+          notes: dto.notes ?? 'Warehouse sale correction (undo)',
+          createdBy: userId,
+        },
+      });
+
+      return tx.articleSize.findUnique({ where: { id: row.id } });
     }, TX_OPTS);
   }
 

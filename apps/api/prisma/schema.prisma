@@ -181,6 +181,8 @@ model ArticleSize {
   size              Size
   sku               String?
   warehouseQuantity Int      @default(0) @map("warehouse_quantity")
+  /// Units sold directly from the warehouse (not through a marketplace).
+  soldQuantity      Int      @default(0) @map("sold_quantity")
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
 

@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import {
   DEFAULT_LOW_STOCK_THRESHOLD,
   SIZES,
+  STOCK_MOVEMENT_TYPES,
   type AnalyticsSummary,
   type AnalyticsTotals,
   type ArticleAnalyticsRow,
@@ -23,37 +24,60 @@ export class AnalyticsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async getSummary(brandId: string, collectionId?: string): Promise<AnalyticsSummary> {
-    const [threshold, collections, marketplaces, articles] = await Promise.all([
-      this.getLowStockThreshold(brandId),
-      this.prisma.collection.count({
-        where: { brandId, ...(collectionId ? { id: collectionId } : {}) },
-      }),
-      this.prisma.marketplace.findMany({
-        where: { brandId },
-        select: { id: true, name: true, color: true },
-        orderBy: { name: 'asc' },
-      }),
-      this.prisma.article.findMany({
-        where: { collection: { brandId }, ...(collectionId ? { collectionId } : {}) },
-        select: {
-          id: true,
-          code: true,
-          name: true,
-          imageUrl: true,
-          purchasePrice: true,
-          collection: { select: { id: true, name: true } },
-          sizes: { select: { size: true, warehouseQuantity: true } },
-          marketplaceArticles: {
-            select: {
-              marketplaceId: true,
-              salePrice: true,
-              stocks: { select: { size: true, allocatedQuantity: true, soldQuantity: true } },
+    const [threshold, collections, marketplaces, articles, warehouseSaleMovements] =
+      await Promise.all([
+        this.getLowStockThreshold(brandId),
+        this.prisma.collection.count({
+          where: { brandId, ...(collectionId ? { id: collectionId } : {}) },
+        }),
+        this.prisma.marketplace.findMany({
+          where: { brandId },
+          select: { id: true, name: true, color: true },
+          orderBy: { name: 'asc' },
+        }),
+        this.prisma.article.findMany({
+          where: { collection: { brandId }, ...(collectionId ? { collectionId } : {}) },
+          select: {
+            id: true,
+            code: true,
+            name: true,
+            imageUrl: true,
+            purchasePrice: true,
+            collection: { select: { id: true, name: true } },
+            sizes: { select: { size: true, warehouseQuantity: true, soldQuantity: true } },
+            marketplaceArticles: {
+              select: {
+                marketplaceId: true,
+                salePrice: true,
+                stocks: { select: { size: true, allocatedQuantity: true, soldQuantity: true } },
+              },
             },
           },
-        },
-        orderBy: { name: 'asc' },
-      }),
-    ]);
+          orderBy: { name: 'asc' },
+        }),
+        // Priced ledger entries of direct warehouse sales (no marketplace): SALE
+        // rows are negative quantities, undo ADJUSTMENTs positive — summing
+        // -quantity × price nets out corrections. Manual stock adjustments carry
+        // no unit price, so they're excluded here.
+        this.prisma.stockMovement.findMany({
+          where: {
+            brandId,
+            marketplaceId: null,
+            unitPrice: { not: null },
+            type: { in: [STOCK_MOVEMENT_TYPES.SALE, STOCK_MOVEMENT_TYPES.ADJUSTMENT] },
+            ...(collectionId ? { article: { collectionId } } : {}),
+          },
+          select: { articleId: true, quantity: true, unitPrice: true },
+        }),
+      ]);
+
+    const warehouseRevenueByArticle = new Map<string, number>();
+    for (const m of warehouseSaleMovements) {
+      warehouseRevenueByArticle.set(
+        m.articleId,
+        (warehouseRevenueByArticle.get(m.articleId) ?? 0) + -m.quantity * Number(m.unitPrice),
+      );
+    }
 
     const byMarketplace = new Map<string, MarketplaceAnalytics>(
       marketplaces.map((m) => [
@@ -84,11 +108,16 @@ export class AnalyticsService {
       const perSizeTotals = new Map<Size, number>();
 
       let warehouseUnits = 0;
+      let warehouseSoldUnits = 0;
       for (const s of article.sizes) {
         warehouseUnits += s.warehouseQuantity;
+        warehouseSoldUnits += s.soldQuantity;
         perSizeTotals.set(s.size, (perSizeTotals.get(s.size) ?? 0) + s.warehouseQuantity);
         const sizeAgg = bySize.get(s.size);
-        if (sizeAgg) sizeAgg.warehouseUnits += s.warehouseQuantity;
+        if (sizeAgg) {
+          sizeAgg.warehouseUnits += s.warehouseQuantity;
+          sizeAgg.soldUnits += s.soldQuantity;
+        }
       }
 
       let allocatedUnits = 0;
@@ -142,6 +171,7 @@ export class AnalyticsService {
       const totalUnits = warehouseUnits + allocatedUnits;
       const hasLowSize = [...perSizeTotals.values()].some((t) => t > 0 && t < threshold);
       const status: ArticleStockStatus = totalUnits === 0 ? 'out' : hasLowSize ? 'low' : 'ok';
+      const warehouseRevenue = warehouseRevenueByArticle.get(article.id) ?? 0;
 
       rows.push({
         articleId: article.id,
@@ -154,9 +184,10 @@ export class AnalyticsService {
         warehouseUnits,
         allocatedUnits,
         totalUnits,
-        soldUnits,
+        soldUnits: soldUnits + warehouseSoldUnits,
+        warehouseSoldUnits,
         stockValue: round2(totalUnits * purchasePrice),
-        revenue: round2(revenue),
+        revenue: round2(revenue + warehouseRevenue),
         status,
         marketplaces: articleMarketplaces,
       });
@@ -180,6 +211,10 @@ export class AnalyticsService {
       totalCostValue: round2(rows.reduce((s, r) => s + r.stockValue, 0)),
       soldUnits: rows.reduce((s, r) => s + r.soldUnits, 0),
       revenue: round2(rows.reduce((s, r) => s + r.revenue, 0)),
+      warehouseSoldUnits: rows.reduce((s, r) => s + r.warehouseSoldUnits, 0),
+      warehouseRevenue: round2(
+        rows.reduce((s, r) => s + (warehouseRevenueByArticle.get(r.articleId) ?? 0), 0),
+      ),
       lowStockArticles: rows.filter((r) => r.status === 'low').length,
       outOfStockArticles: rows.filter((r) => r.status === 'out').length,
     };
