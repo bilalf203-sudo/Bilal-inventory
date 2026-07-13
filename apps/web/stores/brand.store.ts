@@ -6,6 +6,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { BrandContext as BrandContextPayload } from '@bilal/shared';
 import { useAuthStore } from './auth.store';
+import { queryPersister } from '@/lib/query-persister';
 
 const STORAGE_KEY = 'bilal:currentBrandId';
 
@@ -68,6 +69,9 @@ export function useBrandActions() {
   const setBrandId = (id: string | null) => {
     useBrandStore.getState().setBrandId(id);
     queryClient.invalidateQueries();
+    // Switching brand: drop the persisted cache so a later reload can't restore
+    // the previous brand's data (queries aren't keyed by brand id).
+    void queryPersister.removeClient();
   };
 
   return { setBrandId };

@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { create } from 'zustand';
 import type { CurrentUser } from '@bilal/shared';
 import { getSupabaseBrowser } from '@/lib/supabase';
+import { queryPersister } from '@/lib/query-persister';
 
 const BYPASS_AUTH = process.env.NEXT_PUBLIC_BYPASS_AUTH === 'true';
 
@@ -51,6 +52,8 @@ export function useAuthActions() {
       await getSupabaseBrowser().auth.signOut();
     }
     queryClient.clear();
+    // Drop the persisted cache too, so the next user starts from a clean slate.
+    void queryPersister.removeClient();
     useAuthStore.getState().reset();
     router.replace('/login');
   };
