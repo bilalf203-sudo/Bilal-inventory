@@ -15,13 +15,22 @@ export class ImportService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Bulk-imports the factory stock CSV into collections → articles → sizes.
+   * Bulk-imports the factory stock CSV into collections → articles → sizes,
+   * with sync (upsert) semantics — re-uploading a sheet never duplicates:
    *
+   * - articles in the sheet AND the system are updated in place (stock is
+   *   replaced with the sheet quantity, logged as an adjustment)
+   * - articles only in the sheet are created
+   * - articles only in the system are left untouched
+   *
+   * Matching is per-size-SKU first (case-insensitive, brand-wide) since SKUs
+   * are the durable product identity — this also absorbs collection renames
+   * and form-created articles whose auto-code differs from the CSV's SKU stem.
+   * Articles without a SKU hit fall back to (collection, code) matching.
    * Rows are grouped by (collection, SKU stem) so each real product becomes one
-   * article carrying its per-size SKUs. New rows are written with `createMany`
-   * (client-generated UUIDs) so a full ~1200-row catalogue lands in a handful of
-   * queries; rows for articles/sizes that already exist are updated in place and
-   * logged as adjustments.
+   * article carrying its per-size SKUs; new rows are written with `createMany`
+   * (client-generated UUIDs) so a full ~1200-row catalogue lands in a handful
+   * of queries.
    */
   async importWarehouse(
     brandId: string,
@@ -57,26 +66,12 @@ export class ImportService {
       select: { id: true, name: true },
     });
     const collIdByName = new Map(existingColls.map((c) => [c.name.trim().toLowerCase(), c.id]));
+    const existingCollIds = new Set(existingColls.map((c) => c.id));
 
-    // Resolve every collection to an id, minting ids for new ones up front so
-    // articles can reference them without a round-trip per collection.
-    const newCollections: Prisma.CollectionCreateManyInput[] = [];
-    for (const gc of collections) {
-      const key = gc.name.toLowerCase();
-      if (!collIdByName.has(key)) {
-        const collectionId = randomUUID();
-        collIdByName.set(key, collectionId);
-        newCollections.push({ id: collectionId, brandId, name: gc.name, createdBy: userId });
-        result.collectionsCreated += 1;
-      } else {
-        result.collectionsMatched += 1;
-      }
-    }
-
-    // Existing articles across every touched collection in a single query
-    // (freshly-minted collection ids simply match nothing).
+    // Every article in the brand, so sheet rows can be matched wherever the
+    // article currently lives (SKUs are unique product identities brand-wide).
     const existingArticles = await this.prisma.article.findMany({
-      where: { collectionId: { in: Array.from(collIdByName.values()) } },
+      where: { collection: { brandId } },
       select: {
         id: true,
         collectionId: true,
@@ -86,8 +81,80 @@ export class ImportService {
         sizes: { select: { id: true, size: true, sku: true, warehouseQuantity: true } },
       },
     });
+    type ExistingArticle = (typeof existingArticles)[number];
+
     const artKey = (collectionId: string, code: string) => `${collectionId}::${code}`;
     const articleByKey = new Map(existingArticles.map((a) => [artKey(a.collectionId, a.code), a]));
+    // Case-insensitive fallback: form-created articles auto-generate UPPERCASE
+    // codes while CSV stems keep the sheet's casing.
+    const articleByCiKey = new Map(
+      existingArticles.map((a) => [artKey(a.collectionId, a.code.toLowerCase()), a]),
+    );
+    const articleById = new Map(existingArticles.map((a) => [a.id, a]));
+
+    // Per-size SKU → owning article (first wins on the rare duplicate SKU).
+    const articleIdBySku = new Map<string, string>();
+    for (const a of existingArticles) {
+      for (const s of a.sizes) {
+        const key = s.sku?.trim().toLowerCase();
+        if (key && !articleIdBySku.has(key)) articleIdBySku.set(key, a.id);
+      }
+    }
+
+    // Each existing article can absorb at most one sheet group — prevents two
+    // sheet articles with overlapping SKUs from double-updating the same row.
+    const claimed = new Set<string>();
+
+    /** The existing article owning most of this sheet group's SKUs, if any. */
+    const matchBySkus = (sizes: { sku: string }[]): ExistingArticle | undefined => {
+      const votes = new Map<string, number>();
+      for (const s of sizes) {
+        const id = articleIdBySku.get(s.sku.trim().toLowerCase());
+        if (id && !claimed.has(id)) votes.set(id, (votes.get(id) ?? 0) + 1);
+      }
+      let best: string | undefined;
+      let bestVotes = 0;
+      for (const [id, n] of votes) {
+        if (n > bestVotes) {
+          best = id;
+          bestVotes = n;
+        }
+      }
+      return best ? articleById.get(best) : undefined;
+    };
+
+    // Collections are minted lazily — only when a genuinely new article needs
+    // one — so a renamed collection in the sheet doesn't spawn an empty copy
+    // when all its articles matched (by SKU) into their current collections.
+    const newCollections: Prisma.CollectionCreateManyInput[] = [];
+    const resolveCollectionId = (name: string): string => {
+      const key = name.trim().toLowerCase();
+      let id = collIdByName.get(key);
+      if (!id) {
+        id = randomUUID();
+        collIdByName.set(key, id);
+        newCollections.push({ id, brandId, name: name.trim(), createdBy: userId });
+        result.collectionsCreated += 1;
+      }
+      return id;
+    };
+    for (const gc of collections) {
+      if (collIdByName.has(gc.name.trim().toLowerCase())) result.collectionsMatched += 1;
+    }
+
+    // Codes are unique per collection; suffix a created article's code if an
+    // unmatched existing article (or an earlier create) already holds it.
+    const takenCodes = new Set(
+      existingArticles.map((a) => `${a.collectionId}::${a.code.toLowerCase()}`),
+    );
+    const uniqueCode = (collectionId: string, code: string): string => {
+      let candidate = code;
+      for (let n = 2; takenCodes.has(`${collectionId}::${candidate.toLowerCase()}`); n += 1) {
+        candidate = `${code}-${n}`;
+      }
+      takenCodes.add(`${collectionId}::${candidate.toLowerCase()}`);
+      return candidate;
+    };
 
     // ---- Plan the writes ----
     const newArticles: Prisma.ArticleCreateManyInput[] = [];
@@ -111,17 +178,27 @@ export class ImportService {
     };
 
     for (const gc of collections) {
-      const collectionId = collIdByName.get(gc.name.toLowerCase())!;
+      const sheetCollectionId = collIdByName.get(gc.name.trim().toLowerCase());
       for (const ga of gc.articles) {
-        const existing = articleByKey.get(artKey(collectionId, ga.code));
+        // SKU match first (works across collections and code spellings); then
+        // (collection, code), exact and case-insensitive, within the sheet's
+        // collection when it already exists.
+        let existing = matchBySkus(ga.sizes);
+        if (!existing && sheetCollectionId && existingCollIds.has(sheetCollectionId)) {
+          const byCode =
+            articleByKey.get(artKey(sheetCollectionId, ga.code)) ??
+            articleByCiKey.get(artKey(sheetCollectionId, ga.code.toLowerCase()));
+          if (byCode && !claimed.has(byCode.id)) existing = byCode;
+        }
 
         if (!existing) {
           const articleId = randomUUID();
+          const collectionId = resolveCollectionId(gc.name);
           newArticles.push({
             id: articleId,
             collectionId,
             name: ga.name,
-            code: ga.code,
+            code: uniqueCode(collectionId, ga.code),
             purchasePrice: 0,
             imageUrl: ga.imageUrl,
             createdBy: userId,
@@ -134,6 +211,7 @@ export class ImportService {
           result.articlesCreated += 1;
           continue;
         }
+        claimed.add(existing.id);
 
         // Existing article — only touch it when something actually changed.
         if (existing.name !== ga.name || (ga.imageUrl && ga.imageUrl !== existing.imageUrl)) {
