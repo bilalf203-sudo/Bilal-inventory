@@ -14,9 +14,15 @@ export type ArticleSizeInput = z.infer<typeof articleSizeInputSchema>;
 export const createArticleSchema = z.object({
   collectionId: z.string().uuid(),
   name: z.string().min(1).max(160),
-  code: z.string().min(1).max(80).regex(/^[A-Za-z0-9_-]+$/, {
-    message: 'Code must contain only letters, numbers, dashes or underscores',
-  }),
+  /** Optional — when omitted the API derives it from the per-size SKUs (or the name). */
+  code: z
+    .string()
+    .min(1)
+    .max(80)
+    .regex(/^[A-Za-z0-9_-]+$/, {
+      message: 'Code must contain only letters, numbers, dashes or underscores',
+    })
+    .optional(),
   description: z.string().max(2000).optional(),
   purchasePrice: z.coerce.number().nonnegative(),
   imageUrl: z.string().url().nullable().optional(),

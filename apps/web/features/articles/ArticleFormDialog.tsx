@@ -39,7 +39,7 @@ export function ArticleFormDialog({ collectionId, article, trigger }: Props) {
     defaultValues: {
       collectionId,
       name: article?.name ?? '',
-      code: article?.code ?? '',
+      code: article?.code,
       description: article?.description ?? '',
       purchasePrice: Number(article?.purchasePrice ?? 0),
       imageUrl: article?.imageUrl ?? '',
@@ -57,7 +57,7 @@ export function ArticleFormDialog({ collectionId, article, trigger }: Props) {
     form.reset({
       collectionId,
       name: article?.name ?? '',
-      code: article?.code ?? '',
+      code: article?.code,
       description: article?.description ?? '',
       purchasePrice: Number(article?.purchasePrice ?? 0),
       imageUrl: article?.imageUrl ?? '',
@@ -118,10 +118,25 @@ export function ArticleFormDialog({ collectionId, article, trigger }: Props) {
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="code">SKU Code</Label>
-                  <Input id="code" {...form.register('code')} placeholder="NSF-001" />
-                  {form.formState.errors.code && (
+                  <Label htmlFor="code">Article code (optional)</Label>
+                  <Input
+                    id="code"
+                    placeholder="Auto from size SKUs"
+                    {...form.register('code', {
+                      setValueAs: (v) => {
+                        const t = typeof v === 'string' ? v.trim() : v;
+                        return t ? t : undefined;
+                      },
+                    })}
+                  />
+                  {form.formState.errors.code ? (
                     <p className="text-xs text-destructive">{form.formState.errors.code.message}</p>
+                  ) : (
+                    !editing && (
+                      <p className="text-xs text-muted-foreground">
+                        Left empty, it&apos;s generated from the size SKUs or the name.
+                      </p>
+                    )
                   )}
                 </div>
                 <div className="space-y-2">

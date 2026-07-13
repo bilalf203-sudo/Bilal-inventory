@@ -1,5 +1,6 @@
 import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import {
+  SIZES,
   STOCK_MOVEMENT_TYPES,
   type CreateArticleInput,
   type UpdateArticleInput,
@@ -29,7 +30,8 @@ export class ArticlesService {
 
   /**
    * Creates an article, its size rows, and INITIAL_STOCK movements in one transaction.
-   * Article code is unique within a collection.
+   * Article code is unique within a collection; when omitted it's derived from
+   * the per-size SKUs (or the name).
    */
   async create(brandId: string, dto: CreateArticleInput, userId: string) {
     const collection = await this.prisma.collection.findFirst({
@@ -39,16 +41,22 @@ export class ArticlesService {
       throw new ForbiddenException(`Collection ${dto.collectionId} does not belong to this brand`);
     }
 
-    const existing = await this.repo.findByCollectionAndCode(dto.collectionId, dto.code);
-    if (existing) {
-      throw new ConflictException(`Article code "${dto.code}" already exists in this collection`);
+    let code: string;
+    if (dto.code) {
+      const existing = await this.repo.findByCollectionAndCode(dto.collectionId, dto.code);
+      if (existing) {
+        throw new ConflictException(`Article code "${dto.code}" already exists in this collection`);
+      }
+      code = dto.code;
+    } else {
+      code = await this.generateCode(dto);
     }
 
     return this.prisma.$transaction(async (tx) => {
       const article = await tx.article.create({
         data: {
           name: dto.name,
-          code: dto.code,
+          code,
           description: dto.description ?? null,
           purchasePrice: dto.purchasePrice,
           imageUrl: dto.imageUrl ?? null,
@@ -178,5 +186,42 @@ export class ArticlesService {
       await this.storage.deleteByUrl(article.imageUrl);
     }
     return this.repo.update(id, { imageUrl });
+  }
+
+  /** Uppercases and keeps only [A-Z0-9_-], collapsing everything else to dashes. */
+  private static slugifyCode(input: string): string {
+    return input
+      .trim()
+      .toUpperCase()
+      .replace(/[^A-Z0-9_-]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 76);
+  }
+
+  /**
+   * Derives an article code when none was entered: the common prefix of the
+   * per-size SKUs (minus a trailing size token like "-M"), falling back to the
+   * article name. A numeric suffix is appended until the code is unique within
+   * the collection.
+   */
+  private async generateCode(dto: CreateArticleInput): Promise<string> {
+    const skus = dto.sizes.map((s) => s.sku?.trim()).filter((s): s is string => !!s);
+    let base = '';
+    if (skus.length > 0) {
+      let prefix = skus[0];
+      for (const sku of skus.slice(1)) {
+        while (prefix && !sku.startsWith(prefix)) prefix = prefix.slice(0, -1);
+      }
+      prefix = prefix.replace(new RegExp(`[-_](${SIZES.join('|')})$`, 'i'), '');
+      base = ArticlesService.slugifyCode(prefix);
+    }
+    if (!base) base = ArticlesService.slugifyCode(dto.name);
+    if (!base) base = 'ART';
+
+    let code = base;
+    for (let n = 2; await this.repo.findByCollectionAndCode(dto.collectionId, code); n += 1) {
+      code = `${base}-${n}`;
+    }
+    return code;
   }
 }

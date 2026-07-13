@@ -11,6 +11,11 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
         process.env.NODE_ENV === 'development'
           ? ['warn', 'error']
           : ['error'],
+      // Interactive transactions default to a 5s timeout, which multi-step
+      // flows exceed against a remote (pooled) database — they then die
+      // mid-flight with "Transaction not found". Give all of them headroom;
+      // per-call options (e.g. the sales-report commit) still override this.
+      transactionOptions: { timeout: 30_000, maxWait: 10_000 },
     });
   }
 
