@@ -63,10 +63,18 @@ export function usePrefetchArticlesByCollection() {
 }
 
 export function useArticle(id: string | undefined) {
+  const qc = useQueryClient();
   return useQuery({
     queryKey: KEYS.detail(id ?? ''),
     queryFn: () => apiGet<Article>(`/articles/${id}`),
     enabled: !!id,
+    // Paint instantly from whichever collection list already holds this
+    // article while the fresh detail loads in the background.
+    placeholderData: () =>
+      qc
+        .getQueriesData<Article[]>({ queryKey: KEYS.collectionLists })
+        .flatMap(([, data]) => data ?? [])
+        .find((a) => a.id === id),
   });
 }
 

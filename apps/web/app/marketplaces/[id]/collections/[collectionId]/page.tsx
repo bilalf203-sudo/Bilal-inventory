@@ -6,7 +6,6 @@ import {
   ArrowUpDown,
   Boxes,
   ChevronLeft,
-  Loader2,
   Ruler,
   SearchX,
   ShoppingBag,
@@ -17,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Can } from '@/components/common/Can';
 import { EmptyState } from '@/components/common/EmptyState';
+import { ArticleRowsSkeleton } from '@/components/common/skeletons';
 import { SearchInput } from '@/components/common/SearchInput';
 import { FilterSelect, type FilterOption } from '@/components/common/FilterSelect';
 import { ProductImage } from '@/components/common/ProductImage';
@@ -190,9 +190,7 @@ export default function MarketplaceCollectionPage({
       )}
 
       {articles.isLoading ? (
-        <div className="flex justify-center py-20">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </div>
+        <ArticleRowsSkeleton />
       ) : !hasArticles ? (
         <EmptyState
           icon={ShoppingBag}

@@ -3,6 +3,7 @@
 import { Loader2 } from 'lucide-react';
 import type { PropsWithChildren } from 'react';
 import { useAuth, useBrand } from '@/stores';
+import { DataPrefetcher } from '@/components/system/DataPrefetcher';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 
@@ -25,6 +26,7 @@ export function AppShell({ children }: PropsWithChildren) {
 
   return (
     <div className="flex h-dvh overflow-hidden">
+      <DataPrefetcher />
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <Header />

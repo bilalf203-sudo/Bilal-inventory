@@ -9,7 +9,6 @@ import {
   Download,
   Filter,
   FolderOpen,
-  Loader2,
   SearchX,
   ShoppingBag,
   TrendingUp,
@@ -25,6 +24,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { EmptyState } from '@/components/common/EmptyState';
+import { AnalyticsSkeleton } from '@/components/common/skeletons';
 import { SearchInput } from '@/components/common/SearchInput';
 import { FilterSelect } from '@/components/common/FilterSelect';
 import { ProductImage } from '@/components/common/ProductImage';
@@ -127,11 +127,7 @@ export default function AnalyticsPage() {
   }, [data, search, status, marketplaceFilter, sort]);
 
   if (isLoading || !data) {
-    return (
-      <div className="flex justify-center py-20">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <AnalyticsSkeleton />;
   }
 
   const { totals } = data;

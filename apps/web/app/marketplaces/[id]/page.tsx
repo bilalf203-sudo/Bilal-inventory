@@ -2,12 +2,13 @@
 
 import { use, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { ArrowUpDown, FolderOpen, Loader2, SearchX, ShoppingBag } from 'lucide-react';
+import { ArrowUpDown, FolderOpen, SearchX, ShoppingBag } from 'lucide-react';
 import { PERMISSIONS } from '@bilal/shared';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Can } from '@/components/common/Can';
 import { EmptyState } from '@/components/common/EmptyState';
+import { CollectionCardsSkeleton } from '@/components/common/skeletons';
 import { SearchInput } from '@/components/common/SearchInput';
 import { FilterSelect } from '@/components/common/FilterSelect';
 import { SaleReportDialog } from '@/features/inventory/SaleReportDialog';
@@ -126,9 +127,7 @@ export default function MarketplaceDetailPage({ params }: { params: Promise<{ id
       )}
 
       {articles.isLoading ? (
-        <div className="flex justify-center py-20">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </div>
+        <CollectionCardsSkeleton />
       ) : !hasCollections ? (
         <EmptyState
           icon={ShoppingBag}

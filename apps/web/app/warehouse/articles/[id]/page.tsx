@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Can } from '@/components/common/Can';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
+import { ArticleDetailSkeleton } from '@/components/common/skeletons';
 import { ProductImage } from '@/components/common/ProductImage';
 import { ArticleFormDialog } from '@/features/articles/ArticleFormDialog';
 import { AssignToMarketplaceDialog } from '@/features/inventory/AssignToMarketplaceDialog';
@@ -33,11 +34,7 @@ export default function ArticleDetailPage({ params }: { params: Promise<{ id: st
   const deleteArticle = useDeleteArticle();
 
   if (article.isLoading) {
-    return (
-      <div className="flex justify-center py-20">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <ArticleDetailSkeleton />;
   }
   if (!article.data) return null;
   const a = article.data;

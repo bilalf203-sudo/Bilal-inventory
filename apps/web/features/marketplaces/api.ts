@@ -1,6 +1,6 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import type {
   CreateMarketplaceInput,
@@ -35,18 +35,27 @@ export interface MarketplaceArticleWithStock {
   stocks: { id: string; size: string; allocatedQuantity: number; soldQuantity: number }[];
 }
 
-export function useMarketplaces(includeInactive = false) {
+export function useMarketplaces(includeInactive = false, enabled = true) {
   return useQuery({
     queryKey: [...KEYS.list, includeInactive],
     queryFn: () => apiGet<Marketplace[]>('/marketplaces', { includeInactive }),
+    enabled,
   });
 }
 
 export function useMarketplace(id: string | undefined) {
+  const qc = useQueryClient();
   return useQuery({
     queryKey: KEYS.detail(id ?? ''),
     queryFn: () => apiGet<Marketplace>(`/marketplaces/${id}`),
     enabled: !!id,
+    // Paint the header instantly from the already-loaded sidebar list while
+    // the fresh detail loads in the background.
+    placeholderData: () =>
+      qc
+        .getQueriesData<Marketplace[]>({ queryKey: KEYS.list })
+        .flatMap(([, data]) => data ?? [])
+        .find((m) => m.id === id),
   });
 }
 
@@ -55,6 +64,22 @@ export function useMarketplaceArticles(id: string | undefined) {
     queryKey: KEYS.articles(id ?? ''),
     queryFn: () => apiGet<MarketplaceArticleWithStock[]>(`/marketplaces/${id}/articles`),
     enabled: !!id,
+  });
+}
+
+/** Warms the marketplaces list cache; respects staleTime, so it no-ops when fresh. */
+export function prefetchMarketplaces(qc: QueryClient) {
+  return qc.fetchQuery({
+    queryKey: [...KEYS.list, false],
+    queryFn: () => apiGet<Marketplace[]>('/marketplaces', { includeInactive: false }),
+  });
+}
+
+/** Warms one marketplace's assigned-articles cache (the heavy query behind its pages). */
+export function prefetchMarketplaceArticles(qc: QueryClient, id: string) {
+  return qc.prefetchQuery({
+    queryKey: KEYS.articles(id),
+    queryFn: () => apiGet<MarketplaceArticleWithStock[]>(`/marketplaces/${id}/articles`),
   });
 }
 

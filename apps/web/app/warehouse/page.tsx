@@ -2,11 +2,12 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { ArrowUpDown, FolderOpen, Loader2, SearchX, Trash2 } from 'lucide-react';
+import { ArrowUpDown, FolderOpen, SearchX, Trash2 } from 'lucide-react';
 import { PERMISSIONS } from '@bilal/shared';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/common/EmptyState';
+import { CollectionCardsSkeleton } from '@/components/common/skeletons';
 import { Can } from '@/components/common/Can';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { SearchInput } from '@/components/common/SearchInput';
@@ -112,9 +113,7 @@ export default function WarehousePage() {
       )}
 
       {isLoading ? (
-        <div className="flex justify-center py-20">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </div>
+        <CollectionCardsSkeleton />
       ) : !hasCollections ? (
         <EmptyState
           icon={FolderOpen}

@@ -12,17 +12,18 @@ import {
   FileText,
   X,
 } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
-import { PERMISSIONS, type Marketplace } from '@bilal/shared';
-import { apiGet } from '@/lib/api-client';
+import { useQueryClient } from '@tanstack/react-query';
+import { PERMISSIONS } from '@bilal/shared';
 import { useBrand, useUIStore } from '@/stores';
 import { hasPermission } from '@/lib/permissions';
 import { Button } from '@/components/ui/button';
+import { useMarketplaces, prefetchMarketplaceArticles } from '@/features/marketplaces/api';
 import { BrandSwitcher } from './BrandSwitcher';
 import { cn } from '@/lib/utils';
 
 export function Sidebar() {
   const pathname = usePathname();
+  const qc = useQueryClient();
   const { brandId, context } = useBrand();
   const mobileOpen = useUIStore((s) => s.mobileSidebarOpen);
   const setMobileOpen = useUIStore((s) => s.setMobileSidebarOpen);
@@ -32,11 +33,11 @@ export function Sidebar() {
     setMobileOpen(false);
   }, [pathname, setMobileOpen]);
 
-  const marketplacesQuery = useQuery({
-    queryKey: ['marketplaces', 'list', brandId],
-    queryFn: () => apiGet<Marketplace[]>('/marketplaces'),
-    enabled: !!brandId && hasPermission(context, PERMISSIONS.MARKETPLACE_READ),
-  });
+  // Shares the marketplaces cache with the prefetcher and the detail pages.
+  const marketplacesQuery = useMarketplaces(
+    false,
+    !!brandId && hasPermission(context, PERMISSIONS.MARKETPLACE_READ),
+  );
 
   return (
     <>
@@ -102,6 +103,7 @@ export function Sidebar() {
                 }
                 label={m.name}
                 active={pathname.startsWith(`/marketplaces/${m.id}`)}
+                onPrefetch={() => void prefetchMarketplaceArticles(qc, m.id)}
               />
             ))}
             {marketplacesQuery.data?.length === 0 && (
@@ -159,15 +161,20 @@ function NavItem({
   icon,
   label,
   active,
+  onPrefetch,
 }: {
   href: string;
   icon: React.ReactNode;
   label: string;
   active: boolean;
+  onPrefetch?: () => void;
 }) {
   return (
     <Link
       href={href}
+      onMouseEnter={onPrefetch}
+      onFocus={onPrefetch}
+      onTouchStart={onPrefetch}
       className={cn(
         'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition',
         active

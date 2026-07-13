@@ -7,7 +7,6 @@ import {
   ArrowUpDown,
   Boxes,
   ChevronLeft,
-  Loader2,
   Package,
   Ruler,
   SearchX,
@@ -19,6 +18,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Can } from '@/components/common/Can';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { EmptyState } from '@/components/common/EmptyState';
+import { ArticleCardsSkeleton } from '@/components/common/skeletons';
 import { StockBadge } from '@/components/common/StockBadge';
 import { SearchInput } from '@/components/common/SearchInput';
 import { FilterSelect, type FilterOption } from '@/components/common/FilterSelect';
@@ -190,9 +190,7 @@ export default function CollectionDetailPage({ params }: { params: Promise<{ id:
       )}
 
       {articles.isLoading ? (
-        <div className="flex justify-center py-20">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </div>
+        <ArticleCardsSkeleton />
       ) : !hasArticles ? (
         <EmptyState
           icon={Package}
